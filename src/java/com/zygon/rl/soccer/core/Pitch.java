@@ -8,6 +8,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 /**
@@ -98,7 +99,9 @@ public class Pitch {
             Team hasPossession = teamHasPossession();
             Team gainsPossession = getOpponent(hasPossession);
 
-            Player playerWithBall = new HashSet<>(gainsPossession.getPlayers()).iterator().next();
+            Player playerWithBall = gainsPossession.getPlayers().stream()
+                    .sorted((o1, o2) -> ThreadLocalRandom.current().nextInt(-1, 2))
+                    .findAny().orElse(null);
 
             Location possessionLocation = getLocation(playerWithBall);
             possessionLocation.getLocationItems().setHasBall(true);
