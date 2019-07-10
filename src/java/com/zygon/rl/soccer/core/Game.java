@@ -225,6 +225,6 @@ public class Game {
         double val = Math.max(scaledGauss, .50);
         val = Math.min(val, 1.0);
 
-        return Math.round(val * 100) / 100D;
+        return Utils.round(val);
     }
 }
