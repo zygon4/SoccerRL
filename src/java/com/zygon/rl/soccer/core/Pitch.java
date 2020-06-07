@@ -29,6 +29,7 @@ public class Pitch {
     }
 
     private final Location[][] pitch = new Location[WIDTH][HEIGHT];
+    private final Map<Location, LocationItems> itemsByLocation = new HashMap<>();
     private final Team teamA;
     private final Team teamB;
     private final List<String> gameLog = new ArrayList<>();
@@ -49,11 +50,11 @@ public class Pitch {
     }
 
     public Team teamHasPossession() {
-        return ballLocation.getLocationItems().getPlayer().get().getTeam();
+        return playerHasPossession().getTeam();
     }
 
     public Player playerHasPossession() {
-        return ballLocation.getLocationItems().getPlayer().get();
+        return getLocationItems(ballLocation).getPlayer().get();
     }
 
     public Location getLocation(Player player) {
@@ -61,7 +62,8 @@ public class Pitch {
         // double for loop :(
         for (int y = 0; y < HEIGHT; y++) {
             for (int x = 0; x < WIDTH; x++) {
-                LocationItems locationItems = pitch[x][y].getLocationItems();
+                LocationItems locationItems = getLocationItems(pitch[x][y]);
+
                 if (locationItems != null && locationItems.getPlayer().isPresent()) {
                     if (locationItems.getPlayer().get().equals(player)) {
                         return pitch[x][y];
@@ -96,7 +98,7 @@ public class Pitch {
         for (int y = 0; y < HEIGHT; y++) {
             for (int x = 0; x < WIDTH; x++) {
                 Location location = pitch[x][y];
-                LocationItems locationItems = location.getLocationItems();
+                LocationItems locationItems = getLocationItems(location);
 
                 if (locationItems != null && locationItems.getPlayer().isPresent()) {
                     Player playerOnField = locationItems.getPlayer().get();
@@ -141,11 +143,11 @@ public class Pitch {
         }
 
         if (!intercepted) {
-            ballLocation.getLocationItems().setHasBall(false);
+            getLocationItems(ballLocation).setHasBall(false);
 
-            targetLocation.getLocationItems().setHasBall(true);
+            getLocationItems(targetLocation).setHasBall(true);
 
-            gameLog.add("#" + ballLocation.getLocationItems().getPlayer().get().getNumber()
+            gameLog.add("#" + getLocationItems(ballLocation).getPlayer().get().getNumber()
                     + " of " + teamHasPossession().getName() + " passes to #"
                     + target.getNumber() + " (" + distanceToTargetStr + ")");
 
@@ -154,7 +156,7 @@ public class Pitch {
             ballLocation = targetLocation;
         } else {
             // WIP lose posession
-            ballLocation.getLocationItems().setHasBall(false);
+            getLocationItems(ballLocation).setHasBall(false);
             Team hasPossession = teamHasPossession();
             Team gainsPossession = getOpponent(hasPossession);
 
@@ -163,9 +165,9 @@ public class Pitch {
                     .findAny().orElse(null);
 
             Location possessionLocation = getLocation(playerWithBall);
-            possessionLocation.getLocationItems().setHasBall(true);
+            getLocationItems(possessionLocation).setHasBall(true);
 
-            gameLog.add("#" + ballLocation.getLocationItems().getPlayer().get().getNumber()
+            gameLog.add("#" + getLocationItems(ballLocation).getPlayer().get().getNumber()
                     + " of team " + teamHasPossession().getName() + " pass to #"
                     + target.getNumber() + " (" + distanceToTargetStr + ") intercepted by #"
                     + playerWithBall.getNumber() + " of " + gainsPossession.getName());
@@ -181,9 +183,9 @@ public class Pitch {
         // score
         // TODO: LOS to goal and defenders before possible block
         if (rand.nextDouble() > 0.80) {
-            ballLocation.getLocationItems().setHasBall(false);
+            getLocationItems(ballLocation).setHasBall(false);
 
-            gameLog.add("#" + ballLocation.getLocationItems().getPlayer().get().getNumber()
+            gameLog.add("#" + getLocationItems(ballLocation).getPlayer().get().getNumber()
                     + " GOAL!");
 
             // For now just pick random player from other team
@@ -194,9 +196,9 @@ public class Pitch {
             Player player = potentionalPossessor.iterator().next();
 
             Location afterScorePossessionLocation = getLocation(player);
-            ballLocation.getLocationItems().setHasBall(false);
+            getLocationItems(ballLocation).setHasBall(false);
             // could be the same location
-            afterScorePossessionLocation.getLocationItems().setHasBall(true);
+            getLocationItems(afterScorePossessionLocation).setHasBall(true);
             ballLocation = afterScorePossessionLocation;
 
             score = true;
@@ -210,11 +212,11 @@ public class Pitch {
             Player player = potentionalPossessor.iterator().next();
 
             Location afterBlockPossessionLocation = getLocation(player);
-            ballLocation.getLocationItems().setHasBall(false);
+            getLocationItems(ballLocation).setHasBall(false);
             // could be the same location
-            afterBlockPossessionLocation.getLocationItems().setHasBall(true);
+            getLocationItems(afterBlockPossessionLocation).setHasBall(true);
 
-            gameLog.add("#" + ballLocation.getLocationItems().getPlayer().get().getNumber()
+            gameLog.add("#" + getLocationItems(ballLocation).getPlayer().get().getNumber()
                     + " shot blocked, recovered by #" + player.getNumber() + " of " + player.getTeam().getName());
 
             ballLocation = afterBlockPossessionLocation;
@@ -287,7 +289,7 @@ public class Pitch {
                     }
                 }
 
-                pitch[x][y].setLocationItems(locationItems);
+                itemsByLocation.put(pitch[x][y], locationItems);
             }
         }
 
@@ -298,6 +300,10 @@ public class Pitch {
         if (!hasBall) {
             throw new RuntimeException("No ball");
         }
+    }
+
+    private LocationItems getLocationItems(Location location) {
+        return itemsByLocation.get(location);
     }
 
     private Team getOpponent(Team team) {
@@ -337,7 +343,7 @@ public class Pitch {
 
             for (int x = 0; x < WIDTH; x++) {
                 Location location = pitch[x][y];
-                LocationItems locationItems = location.getLocationItems();
+                LocationItems locationItems = getLocationItems(location);
 
                 if (locationItems != null) {
                     if (locationItems.hasBall()) {

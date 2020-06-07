@@ -13,8 +13,6 @@ public final class Location {
     private final int x;
     private final int y;
     private final Identifier identifier;
-    // Mutable field, I hate mutation but in games performance is a thing
-    private LocationItems locationItems = null;
 
     public Location(int x, int y) {
         this.x = x;
@@ -50,11 +48,6 @@ public final class Location {
         return y;
     }
 
-    // TBD: can now ask questions through to the Identifier and marshall back to Location
-    public LocationItems getLocationItems() {
-        return locationItems;
-    }
-
     @Override
     public final String toString() {
         return x + "/" + y;
@@ -77,9 +70,5 @@ public final class Location {
     public int hashCode() {
         // Not ideal
         return toString().hashCode();
-    }
-
-    void setLocationItems(LocationItems locationItems) {
-        this.locationItems = locationItems;
     }
 }
