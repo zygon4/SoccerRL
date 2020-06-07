@@ -179,6 +179,7 @@ public class Pitch {
         boolean score = false;
 
         // score
+        // TODO: LOS to goal and defenders before possible block
         if (rand.nextDouble() > 0.80) {
             ballLocation.getLocationItems().setHasBall(false);
 
@@ -317,8 +318,14 @@ public class Pitch {
 
         StringBuilder sb = new StringBuilder();
 
+        sb.append("  ").append(teamA.getName()).append("\n");
+
         for (int x = 0; x < WIDTH * 2; x++) {
-            sb.append("-");
+            if (x >= (WIDTH - 3) && x < (WIDTH + 3)) {
+                sb.append("G");
+            } else {
+                sb.append("-");
+            }
         }
 
         sb.append("\n");
@@ -381,10 +388,16 @@ public class Pitch {
         }
 
         for (int x = 0; x < WIDTH * 2; x++) {
-            sb.append("-");
+            if (x >= (WIDTH - 3) && x < (WIDTH + 3)) {
+                sb.append("G");
+            } else {
+                sb.append("-");
+            }
         }
 
         sb.append("\n");
+
+        sb.append("  ").append(teamB.getName()).append("\n");
 
         // print all vs last few
         for (int x = 0; x < gameLog.size(); x++) {
