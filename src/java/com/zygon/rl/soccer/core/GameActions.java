@@ -1,5 +1,6 @@
 package com.zygon.rl.soccer.core;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -12,18 +13,12 @@ import java.util.Set;
  */
 public class GameActions {
 
+    // ManagerAction needs a refactor similar to PlayerAction
     private final Map<ManagerAction, Set<Player>> managerActions = new LinkedHashMap<>();
-    private final Set<Pair<Player, Player>> passFromTo = new LinkedHashSet<>();
-    private Player shooter = null;
+    private final Set<PlayerAction> playerActions = new LinkedHashSet<>();
 
-    void addPassAction(Player from, Player target) {
-        // TODO: validation on from/target
-        this.passFromTo.add(Pair.create(from, target));
-    }
-
-    // TODO: shooter shouldn't be required here
-    void addShootAction(Player shooter) {
-        this.shooter = shooter;
+    void add(PlayerAction playerAction) {
+        playerActions.add(playerAction);
     }
 
     void add(ManagerAction managerAction, Player player) {
@@ -40,35 +35,31 @@ public class GameActions {
     }
 
     public Map<ManagerAction, Set<Player>> getManagerActions() {
-        return this.managerActions;
+        return Collections.unmodifiableMap(managerActions);
     }
 
-    public Set<Pair<Player, Player>> getPassFromTo() {
-        return passFromTo;
+    public Set<PlayerAction> getPlayerActions() {
+        return Collections.unmodifiableSet(playerActions);
     }
 
-    public Player getShooter() {
-        return this.shooter;
+    public Map<Integer, PlayerAction> getLabeledPlayerActions() {
+        Map<Integer, PlayerAction> labeledActions = new LinkedHashMap<>();
+
+        int index = 1;
+
+        for (PlayerAction pa : playerActions) {
+            labeledActions.put(index++, pa);
+        }
+
+        return labeledActions;
     }
 
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
 
-        for (Pair<Player, Player> pass : passFromTo) {
-            sb.append(PlayerAction.PLAYER_PASS.name())
-                    .append(": ")
-                    .append(pass.getLeft())
-                    .append(" TO ")
-                    .append(pass.getRight())
-                    .append("\n");
-        }
-
-        if (shooter != null) {
-            sb.append(PlayerAction.PLAYER_SHOOT.name())
-                    .append(": ")
-                    .append(shooter)
-                    .append("\n");
+        for (PlayerAction playerAction : playerActions) {
+            sb.append(playerAction).append("\n");
         }
 
         for (Map.Entry<ManagerAction, Set<Player>> entry : managerActions.entrySet()) {

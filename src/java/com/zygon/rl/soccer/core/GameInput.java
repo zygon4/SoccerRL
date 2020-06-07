@@ -28,7 +28,7 @@ public class GameInput {
         for (Map.Entry<Player, Pair<PlayerAction, Location>> entry : actionsByPlayer.entrySet()) {
             sb.append(entry.getKey())
                     .append(": ")
-                    .append(entry.getValue().getLeft().name())
+                    .append(entry.getValue().getLeft())
                     .append(" ")
                     .append(entry.getValue().getRight().getX())
                     .append("/")

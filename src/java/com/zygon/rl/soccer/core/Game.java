@@ -5,11 +5,14 @@
  */
 package com.zygon.rl.soccer.core;
 
-import java.util.HashSet;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  *
@@ -48,10 +51,10 @@ public class Game {
 
                 // Yay, I have the ball!
                 if (pitch.hasBall(player)) {
-                    availableGameActions.addShootAction(player);
+                    availableGameActions.add(PlayerAction.shoot(player));
 
                     for (Player teammate : team.getTeammates(player)) {
-                        availableGameActions.addPassAction(player, teammate);
+                        availableGameActions.add(PlayerAction.pass(player, teammate));
                     }
                 }
 
@@ -89,23 +92,34 @@ public class Game {
 
     public void apply(GameActions gameActions) {
 
-        Player shooter = gameActions.getShooter();
-
-        if (shooter != null) {
-            // shoot!
-            if (pitch.shoot()) {
-                System.out.println("GOAAAAAALLLLL");
-            }
-        } else {
-            // Should only be one, if more than one just grab the first
-            Pair<Player, Player> passFromTo = gameActions.getPassFromTo().iterator().next();
-
-            if (!pitch.hasBall(passFromTo.getLeft())) {
-                throw new IllegalStateException("Player doesn't have ball");
-            }
-
-            pitch.pass(passFromTo.getRight());
+        Set<PlayerAction> playerActions = gameActions.getPlayerActions();
+        // Should just be 1 action
+        if (playerActions.size() != 1) {
+            throw new IllegalStateException("1 action expected");
         }
+
+        PlayerAction action = playerActions.iterator().next();
+
+        switch (action.getAction()) {
+            case PASS:
+                Player from = action.getPlayer();
+                Player to = action.getTeammate();
+
+                if (!pitch.hasBall(from)) {
+                    throw new IllegalStateException("Player doesn't have ball");
+                }
+
+                pitch.pass(to);
+                break;
+            case SHOOT:
+                // shoot!
+                if (pitch.shoot()) {
+                    System.out.println("GOAAAAAALLLLL");
+                    // TODO: keep score/stats
+                }
+                break;
+        }
+
         // TODO: the fun parts
     }
 
@@ -122,27 +136,35 @@ public class Game {
         Random rand = new Random();
 
         for (int i = 0; i < 20; i++) {
-            System.out.println(game.getPitch());
-
-            GameActions availableGameActions = game.getAvailable(game.teamHasPossession());
-
-            System.out.println("Available actions:");
-            System.out.println(availableGameActions);
-
-            GameActions gameAction = new GameActions();
-
-            if (rand.nextDouble() < .85) {
-                // get pass action
-                Pair<Player, Player> passPair = new HashSet<>(
-                        availableGameActions.getPassFromTo()).iterator().next();
-                gameAction.addPassAction(passPair.getLeft(), passPair.getRight());
-            } else {
-                gameAction.addShootAction(game.playerHasPossession());
-            }
-
-            // apply to game
-            game.apply(gameAction);
+            runPassDrillStep(game, rand);
         }
+    }
+
+    private static void runPassDrillStep(Game game, Random rand) {
+
+        System.out.println(game.getPitch());
+
+        GameActions availableGameActions = game.getAvailable(game.teamHasPossession());
+
+        System.out.println("Available actions:");
+        System.out.println(availableGameActions);
+
+        GameActions gameAction = new GameActions();
+
+        // 15% chance of shooting, otherwise pass
+        if (rand.nextDouble() < .85) {
+            List<PlayerAction> randomPlayerAction = availableGameActions.getPlayerActions().stream()
+                    .filter(pa -> pa.getAction() != PlayerAction.Action.SHOOT)
+                    .collect(Collectors.toList());
+            Collections.shuffle(randomPlayerAction);
+
+            gameAction.add(randomPlayerAction.get(0));
+        } else {
+            gameAction.add(PlayerAction.shoot(game.playerHasPossession()));
+        }
+
+        // apply to game
+        game.apply(gameAction);
     }
 
     private static void runScenarios(Game game) {
@@ -181,16 +203,80 @@ public class Game {
 //        System.out.println(gameInput.toDisplayString(game));
     }
 
+    // "turns" instead of duration for now
+    private static void playVsPc(Game game, String playerTeam, int turns) {
+
+        Random rand = new Random();
+
+        for (int turn = turns; turn > 0; turn--) {
+            System.out.println(game.getPitch());
+            System.out.println(" Remaining turns: " + turn);
+            System.out.println(" Possession: " + game.teamHasPossession().getName());
+            System.out.println("\n");
+
+            if (game.teamHasPossession().getName().equals(playerTeam)) {
+                GameActions availableGameActions = game.getAvailable(game.teamHasPossession());
+
+                GameActions gameAction = getPlayerAction(availableGameActions);
+
+                game.apply(gameAction);
+            } else {
+                // AI turn
+                runPassDrillStep(game, rand);
+            }
+        }
+    }
+
+    // TODO: shape
+    public static GameActions getPlayerAction(GameActions availableGameActions) {
+
+        System.out.println("Available actions:");
+//        System.out.println(availableGameActions);
+        Map<Integer, PlayerAction> labeledPlayerActions = availableGameActions.getLabeledPlayerActions();
+
+        String inputOptions = labeledPlayerActions.entrySet()
+                .stream()
+                .map(e -> e.getKey() + "=\"" + e.getValue() + "\"")
+                .collect(Collectors.joining("\n"));
+
+        Integer input = null;
+        while (input == null) {
+
+            String inputStr = null;
+
+            try {
+                inputStr = Utils.getStdIn(Optional.of(inputOptions));
+
+                Integer i = Integer.parseInt(inputStr);
+                if (!labeledPlayerActions.containsKey(i)) {
+                    System.err.println("Invalid action");
+                }
+                input = i;
+            } catch (IOException io) {
+                io.printStackTrace(System.err);
+                System.exit(1);
+            } catch (NumberFormatException nfe) {
+                System.err.println("Unexpected input " + inputStr);
+            }
+        }
+
+        GameActions playerAction = new GameActions();
+        playerAction.add(labeledPlayerActions.get(input));
+
+        return playerAction;
+    }
+
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-        Team teamA = createTeam("Team A");
-        Team teamB = createTeam("Team B");
+        Team teamA = createTeam("USA");
+        Team teamB = createTeam("JAPAN");
 
         Game game = new Game(teamA, teamB);
 //        runScenarios(game);
-        runPassDrill(game);
+//        runPassDrill(game);
+        playVsPc(game, "USA", 20);
     }
 
     private static Team createTeam(String name) {
