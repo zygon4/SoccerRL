@@ -20,14 +20,14 @@ import java.util.stream.Collectors;
  */
 public class Game {
 
-    private final Team teamA;
-    private final Team teamB;
+    private final Team homeTeam;
+    private final Team awayTeam;
     private final Pitch pitch;
 
-    public Game(Team teamA, Team teamB) {
-        this.teamA = teamA;
-        this.teamB = teamB;
-        this.pitch = new Pitch(this.teamA, this.teamB);
+    public Game(Team homeTeam, Team awayTeam) {
+        this.homeTeam = homeTeam;
+        this.awayTeam = awayTeam;
+        this.pitch = new Pitch(this.homeTeam, this.awayTeam);
     }
 
     public Team teamHasPossession() {
@@ -123,12 +123,12 @@ public class Game {
         // TODO: the fun parts
     }
 
-    Team getTeamA() {
-        return teamA;
+    Team getHomeTeam() {
+        return homeTeam;
     }
 
-    Team getTeamB() {
-        return teamB;
+    Team getAwayTeam() {
+        return awayTeam;
     }
 
     private static void runPassDrill(Game game) {
@@ -171,7 +171,7 @@ public class Game {
 
         System.out.println(game.getPitch());
 
-        GameActions availableGameActions = game.getAvailable(game.getTeamA());
+        GameActions availableGameActions = game.getAvailable(game.getHomeTeam());
         System.out.println("Available actions:");
         System.out.println(availableGameActions);
 
