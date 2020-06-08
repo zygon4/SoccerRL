@@ -10,7 +10,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 /**
@@ -83,99 +83,91 @@ public class Pitch {
     // TODO: needs a lot of work to incorporate player lines and stats
     // need to calculate trajectory plus obstacles ie if an opponent blocks or intercepts
     public void pass(Player target) {
+        pass(getLocation(target));
+    }
 
-        Location targetLocation = getLocation(target);
+    public void pass(Location targetLocation) {
 
         // These are getting obsoleted
         double distanceToTarget = targetLocation.getDistance(ballLocation);
         String distanceToTargetStr = String.valueOf(Utils.round(distanceToTarget));
 
+        // Do expect a passer
+        Player passer = getLocationItems(ballLocation).getPlayer().get();
+        Player target = getLocationItems(targetLocation).getPlayer().get();
+
+        final AtomicBoolean intercepted = new AtomicBoolean(false);
+        final List<Player> interceptingPlayer = new ArrayList<>(1);
+
+        // TBD: the path does NOT include the final destination, perhaps add it?
+        // I don't think it's material atm.
         List<Location> path = ballLocation.getPath(targetLocation);
 
-        // check for neighboring players and calculate intercept chance
-        Map<Location, Set<Player>> playersByLocation = new HashMap<>();
+        // Defense radius, better passer means defense has less opportunity
+        // Note radius is a little weird for the first spot (where the passer is),
+        // the defender can be behind the passer.
+        final long radius = Math.max(1L, (3 - Math.round(passer.getPower() + passer.getFinesse())));
 
-        for (int y = 0; y < HEIGHT; y++) {
-            for (int x = 0; x < WIDTH; x++) {
-                Location location = pitch[x][y];
-                LocationItems locationItems = getLocationItems(location);
+// TBD: log?
+//        System.out.println("Path from " + ballLocation + " to " + targetLocation);
+//        System.out.println(path.stream()
+//                .map(Location::toString)
+//                .collect(Collectors.joining(",")));
+//
+        for (Location p : path) {
+            p.getRadius(p, radius).stream()
+                    .forEach(loc -> {
+                        if (!intercepted.get()) {
+                            LocationItems locationItems = getLocationItems(loc);
+                            if (locationItems != null) {
+                                Optional<Player> player = locationItems.getPlayer();
+                                if (player.isPresent()) {
+                                    if (isOpponent(teamHasPossession(), player.get().getTeam())) {
+                                        System.out.println("On path, found opponent " + player.get());
+                                        Player opponent = player.get();
 
-                if (locationItems != null && locationItems.getPlayer().isPresent()) {
-                    Player playerOnField = locationItems.getPlayer().get();
-
-                    if (isOpponent(teamHasPossession(), playerOnField.getTeam())) {
-                        // TODO: radius based on player stats
-                        location.getRadius(location, 5).stream()
-                                .forEach(loc -> {
-                                    Set<Player> playersInfluencingLocation = playersByLocation.get(loc);
-                                    if (playersInfluencingLocation == null) {
-                                        playersInfluencingLocation = new HashSet<>();
-                                        playersByLocation.put(loc, playersInfluencingLocation);
+                                        double defenseCalc = (opponent.getReach() + opponent.getSpeed() + opponent.getFinesse()) / 2;
+                                        System.out.println("Defender " + opponent + " scores " + defenseCalc);
+                                        if (defenseCalc > 1.0) {
+                                            intercepted.set(true);
+                                            interceptingPlayer.add(opponent);
+                                        }
                                     }
-                                    playersInfluencingLocation.add(playerOnField);
-                                });
-                    }
-                }
-            }
+                                }
+                            }
+                        }
+                    });
         }
 
-        boolean intercepted = false;
-
-        for (Location l : path) {
-            // On the path, check if there are defenders in the area
-            Set<Player> defendingPlayers = playersByLocation.get(l);
-            if (defendingPlayers != null) {
-                // TODO: weighted random check
-                double interceptChance = defendingPlayers.stream()
-                        .mapToDouble(player -> {
-                            // finesse as pure modifier?
-                            // TODO: probably need a few "calculate checks" util functions
-                            double calc = (player.getReach() + player.getSpeed() + player.getFinesse()) / 2;
-                            System.out.println("Defender " + player + " scores " + calc);
-                            return calc;
-                        })
-                        .max().orElse(0.0);
-
-                // not well normalized, arbitrary chance check
-                // TODO: needs work!
-                intercepted = interceptChance > 1.0;
-            }
-        }
-
-        if (!intercepted) {
+        if (!intercepted.get()) {
             getLocationItems(ballLocation).setHasBall(false);
-
             getLocationItems(targetLocation).setHasBall(true);
 
-            gameLog.add("#" + getLocationItems(ballLocation).getPlayer().get().getNumber()
-                    + " of " + teamHasPossession().getName() + " passes to #"
-                    + target.getNumber() + " (" + distanceToTargetStr + ")");
+            gameLog.add("#" + passer.getNumber() + " of " + teamHasPossession().getName()
+                    + " passes to #" + target.getNumber() + " (" + distanceToTargetStr + ")");
 
             // TODO: game log w/ alternative outcomes
             // For now just 100% success
             ballLocation = targetLocation;
         } else {
-            // WIP lose posession
             getLocationItems(ballLocation).setHasBall(false);
             Team hasPossession = teamHasPossession();
             Team gainsPossession = getOpponent(hasPossession);
 
-            Player playerWithBall = gainsPossession.getPlayers().stream()
-                    .sorted((o1, o2) -> ThreadLocalRandom.current().nextInt(-1, 2))
-                    .findAny().orElse(null);
+            Player playerWithBall = interceptingPlayer.get(0);
 
             Location possessionLocation = getLocation(playerWithBall);
             getLocationItems(possessionLocation).setHasBall(true);
 
-            gameLog.add("#" + getLocationItems(ballLocation).getPlayer().get().getNumber()
-                    + " of team " + teamHasPossession().getName() + " pass to #"
-                    + target.getNumber() + " (" + distanceToTargetStr + ") intercepted by #"
+            gameLog.add("#" + passer.getNumber() + " of team " + teamHasPossession().getName()
+                    + " pass to #" + target.getNumber() + " (" + distanceToTargetStr + ") intercepted by #"
                     + playerWithBall.getNumber() + " of " + gainsPossession.getName());
 
             ballLocation = possessionLocation;
         }
     }
 
+    // TODO: take a location
     public boolean shoot() {
 
         boolean score = false;
@@ -204,10 +196,10 @@ public class Pitch {
             score = true;
         } else {
             // block, ball goes randomly near the goal
-            Team hasPossession = teamHasPossession();
-            Team opposingTeam = getOpponent(hasPossession);
+            Team possessingTeam = teamHasPossession();
+            Team opposingTeam = getOpponent(possessingTeam);
 
-            Set<Player> potentionalPossessor = new HashSet<>(hasPossession.getPlayers());
+            Set<Player> potentionalPossessor = new HashSet<>(possessingTeam.getPlayers());
             potentionalPossessor.addAll(opposingTeam.getPlayers());
             Player player = potentionalPossessor.iterator().next();
 

@@ -34,7 +34,7 @@ public final class Location {
                 .collect(Collectors.toList());
     }
 
-    public Collection<Location> getRadius(Location o, int radius) {
+    public Collection<Location> getRadius(Location o, long radius) {
         return this.identifier.getNeighbors(radius).stream()
                 .map(id -> new Location(id))
                 .collect(Collectors.toList());

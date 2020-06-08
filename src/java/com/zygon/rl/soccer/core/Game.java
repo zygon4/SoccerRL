@@ -41,11 +41,11 @@ public class Game {
     public GameActions getAvailable(Team team) {
         GameActions availableGameActions = new GameActions();
 
-        for (Player player : team.getPlayers()) {
-            availableGameActions.add(ManagerAction.MANAGER_PLAYER_STATS, player);
-            availableGameActions.add(ManagerAction.MANAGER_PLAYER_ZONE, player);
-        }
-
+        // TODO
+//        for (Player player : team.getPlayers()) {
+//            availableGameActions.add(ManagerAction.MANAGER_PLAYER_STATS, player);
+//            availableGameActions.add(ManagerAction.MANAGER_PLAYER_ZONE, player);
+//        }
         for (Player player : team.getPlayers()) {
             if (team.hasPlayer(player)) {
 

@@ -163,7 +163,7 @@ public class Identifier implements Comparable<Identifier> {
 
     // This does not seem to fully work for 3d
     // TBD: direction option
-    public Collection<Identifier> getNeighbors(int radius) {
+    public Collection<Identifier> getNeighbors(long radius) {
         Collection<Identifier> neighbors = new ArrayList<>();
 
         // For each dimension
