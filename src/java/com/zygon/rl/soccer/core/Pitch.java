@@ -19,8 +19,98 @@ import java.util.stream.Collectors;
  */
 public class Pitch {
 
-    private static final int HEIGHT = 30;
+    public static final class PlayResult {
+
+        private final Player passer;
+        private final Location target;
+        private final boolean goal;
+        private final Player targetPlayer;
+        private final Player defender;
+
+        private PlayResult(Player passer, Location target,
+                Player targetPlayer, Player defender, boolean goal) {
+            this.passer = Objects.requireNonNull(passer);
+            this.target = Objects.requireNonNull(target);
+            this.targetPlayer = targetPlayer;
+            this.defender = defender;
+            this.goal = goal;
+
+            if (defender != null && goal) {
+                throw new IllegalStateException();
+            }
+        }
+
+        public static PlayResult pass(Player passer, Location target,
+                Player targetPlayer) {
+            return new PlayResult(passer, target, targetPlayer, null, false);
+        }
+
+        public static PlayResult passDefended(Player passer, Location target,
+                Player targetPlayer, Player defender) {
+            return new PlayResult(passer, target, targetPlayer, defender, false);
+        }
+
+        public static PlayResult goal(Player passer, Location target) {
+            return new PlayResult(passer, target, null, null, true);
+        }
+
+        public boolean isGoal() {
+            return goal;
+        }
+
+        public Player getPasser() {
+            return passer;
+        }
+
+        public Location getTarget() {
+            return target;
+        }
+
+        public Optional<Player> getTargetPlayer() {
+            return Optional.ofNullable(targetPlayer);
+        }
+
+        public Optional<Player> getDefendingPlayer() {
+            return Optional.ofNullable(defender);
+        }
+
+        public String getDisplayString() {
+            // TODO: pass metrics
+            String distanceToTargetStr = "TODO";
+
+            StringBuilder sb = new StringBuilder();
+
+            sb.append("#").append(passer.getNumber()).append(" of ").append(passer.getTeam().getName());
+
+            // passes to, shoot at
+            if (getTargetPlayer().isPresent()) {
+                // passes to
+                Player tarPlayer = getTargetPlayer().get();
+                sb.append(" passes to #").append(tarPlayer.getNumber());
+            } else {
+                // TODO: either a "shot" on goal, or "pass" to the open field
+                sb.append(" passes to ").append(getTarget());
+            }
+
+            if (getDefendingPlayer().isPresent()) {
+                Player defPlayer = getDefendingPlayer().get();
+                sb.append(" intercepted by #")
+                        .append(defPlayer.getNumber())
+                        .append(" of ")
+                        .append(defPlayer.getTeam().getName());
+            }
+
+            if (goal) {
+                sb.append(" GOAL!");
+            }
+
+            return sb.toString();
+        }
+    }
+
+    private static final int HEIGHT = 30; // not including the goal
     private static final int WIDTH = 20;
+    private static final int GOAL_WIDTH = 6;
 
     // TBD: experimental
     public static enum Sidebar {
@@ -29,6 +119,7 @@ public class Pitch {
     }
 
     private final Location[][] pitch = new Location[WIDTH][HEIGHT];
+    private final Map<Team, List<Location>> orderedGoalLocationsByTeam = new HashMap<>(2);
     private final Map<Location, LocationItems> itemsByLocation = new HashMap<>();
     private final Team teamA;
     private final Team teamB;
@@ -47,6 +138,10 @@ public class Pitch {
 
     public List<String> getGameLog() {
         return Collections.unmodifiableList(gameLog);
+    }
+
+    public List<Location> getGoalLocations(Team team) {
+        return orderedGoalLocationsByTeam.get(team);
     }
 
     public Team teamHasPossession() {
@@ -75,18 +170,26 @@ public class Pitch {
         return null;
     }
 
+    public Team getOpponent(Team team) {
+        return team.equals(teamA) ? teamB : teamA;
+    }
+
     public boolean hasBall(Player player) {
         Location playerLocation = getLocation(player);
         return playerLocation.equals(ballLocation);
     }
 
+    // TODO: Pass to a location (to be auto-retrieved for now unless a goal)
+    // TBD: a "shot" is just a pass to the back of the net
+    //
     // TODO: needs a lot of work to incorporate player lines and stats
     // need to calculate trajectory plus obstacles ie if an opponent blocks or intercepts
-    public void pass(Player target) {
-        pass(getLocation(target));
+    public PlayResult pass(Player target) {
+        return pass(getLocation(target));
     }
 
-    public void pass(Location targetLocation) {
+    // TODO: optional shot options, ie. player input on how much energy or finesse to use
+    public PlayResult pass(Location targetLocation) {
 
         // These are getting obsoleted
         double distanceToTarget = targetLocation.getDistance(ballLocation);
@@ -94,7 +197,7 @@ public class Pitch {
 
         // Do expect a passer
         Player passer = getLocationItems(ballLocation).getPlayer().get();
-        Player target = getLocationItems(targetLocation).getPlayer().get();
+        Player target = getLocationItems(targetLocation).getPlayer().orElse(null);
 
         final AtomicBoolean intercepted = new AtomicBoolean(false);
         final List<Player> interceptingPlayer = new ArrayList<>(1);
@@ -106,6 +209,8 @@ public class Pitch {
         // Defense radius, better passer means defense has less opportunity
         // Note radius is a little weird for the first spot (where the passer is),
         // the defender can be behind the passer.
+        // TODO: this calculation should be made elsewhere, like a "LivePlayer" that knows
+        // of the Player and in-game stats like fatigue
         final long radius = Math.max(1L, (3 - Math.round(passer.getPower() + passer.getFinesse())));
 
 // TBD: log?
@@ -139,16 +244,24 @@ public class Pitch {
                     });
         }
 
+        PlayResult result = null;
+
         if (!intercepted.get()) {
+
+            List<Location> goalLocations = getGoalLocations(getOpponent(teamHasPossession()));
+            boolean score = goalLocations.stream()
+                    .filter(loc -> loc.equals(targetLocation))
+                    .findAny().orElse(null) != null;
+
             getLocationItems(ballLocation).setHasBall(false);
             getLocationItems(targetLocation).setHasBall(true);
-
-            gameLog.add("#" + passer.getNumber() + " of " + teamHasPossession().getName()
-                    + " passes to #" + target.getNumber() + " (" + distanceToTargetStr + ")");
-
-            // TODO: game log w/ alternative outcomes
-            // For now just 100% success
             ballLocation = targetLocation;
+
+            if (score) {
+                result = PlayResult.goal(passer, targetLocation);
+            } else {
+                result = PlayResult.pass(passer, targetLocation, target);
+            }
         } else {
             getLocationItems(ballLocation).setHasBall(false);
             Team hasPossession = teamHasPossession();
@@ -159,16 +272,19 @@ public class Pitch {
             Location possessionLocation = getLocation(playerWithBall);
             getLocationItems(possessionLocation).setHasBall(true);
 
-            gameLog.add("#" + passer.getNumber() + " of team " + teamHasPossession().getName()
-                    + " pass to #" + target.getNumber() + " (" + distanceToTargetStr + ") intercepted by #"
-                    + playerWithBall.getNumber() + " of " + gainsPossession.getName());
-
             ballLocation = possessionLocation;
+
+            result = PlayResult.passDefended(passer, targetLocation, target, playerWithBall);
         }
+
+        gameLog.add(result.getDisplayString());
+
+        return result;
     }
 
-    // TODO: take a location
-    public boolean shoot() {
+    // TODO: use some of this logic to flush out post-goal mechanics
+    @Deprecated
+    public boolean shoot(Location goalLocation) {
 
         boolean score = false;
 
@@ -236,38 +352,54 @@ public class Pitch {
     }
 
     // TBD: with a player squad/formation guide
-    private void fillPitch(Location[][] pitch, Team teamA, Team teamB) {
+    private void fillPitch(Location[][] pitch, Team home, Team away) {
 
         boolean hasBall = false;
 
-        List<Player> teamAplayers = new ArrayList<>(teamA.getPlayers());
+        List<Player> homePlayers = new ArrayList<>(home.getPlayers());
         int teamAPlayerIndex = 0;
 
-        List<Player> teamBplayers = new ArrayList<>(teamB.getPlayers());
+        List<Player> awayPlayers = new ArrayList<>(away.getPlayers());
         int teamBPlayerIndex = 0;
+
+        // The goal "hitbox" is right in front of the goals. This is beause there's
+        // an issue with the path finding from positive to negative grid space and
+        // this is just easier.
+        List<Location> homeTeamGoals = new ArrayList<>();
+        for (int i = 0; i < GOAL_WIDTH; i++) {
+            Location l = new Location(i + 8, 0);
+            homeTeamGoals.add(l);
+        }
+        orderedGoalLocationsByTeam.put(home, homeTeamGoals);
+
+        List<Location> awayTeamGoals = new ArrayList<>();
+        for (int i = 0; i < GOAL_WIDTH; i++) {
+            Location l = new Location(i + 8, HEIGHT - 1);
+            awayTeamGoals.add(l);
+        }
+        orderedGoalLocationsByTeam.put(away, awayTeamGoals);
 
         for (int y = 0; y < HEIGHT; y++) {
             for (int x = 0; x < WIDTH; x++) {
                 pitch[x][y] = new Location(x, y);
 
-                LocationItems locationItems = null;
-                if (teamAPlayerIndex < teamAplayers.size() || teamBPlayerIndex < teamBplayers.size()) {
+                LocationItems locationItems = new LocationItems();
+                if (teamAPlayerIndex < homePlayers.size() || teamBPlayerIndex < awayPlayers.size()) {
                     if (rand.nextDouble() > 0.96) {
-                        locationItems = new LocationItems();
                         Player player = null;
 
                         // Total garbage player positioning
                         if (rand.nextBoolean()) {
-                            if (teamAPlayerIndex < teamAplayers.size()) {
-                                player = teamAplayers.get(teamAPlayerIndex++);
-                            } else if (teamBPlayerIndex < teamBplayers.size()) {
-                                player = teamBplayers.get(teamBPlayerIndex++);
+                            if (teamAPlayerIndex < homePlayers.size()) {
+                                player = homePlayers.get(teamAPlayerIndex++);
+                            } else if (teamBPlayerIndex < awayPlayers.size()) {
+                                player = awayPlayers.get(teamBPlayerIndex++);
                             }
                         } else {
-                            if (teamBPlayerIndex < teamBplayers.size()) {
-                                player = teamBplayers.get(teamBPlayerIndex++);
-                            } else if (teamAPlayerIndex < teamAplayers.size()) {
-                                player = teamAplayers.get(teamAPlayerIndex++);
+                            if (teamBPlayerIndex < awayPlayers.size()) {
+                                player = awayPlayers.get(teamBPlayerIndex++);
+                            } else if (teamAPlayerIndex < homePlayers.size()) {
+                                player = homePlayers.get(teamAPlayerIndex++);
                             }
                         }
 
@@ -285,7 +417,7 @@ public class Pitch {
             }
         }
 
-        if (teamAPlayerIndex < teamAplayers.size() || teamBPlayerIndex < teamBplayers.size()) {
+        if (teamAPlayerIndex < homePlayers.size() || teamBPlayerIndex < awayPlayers.size()) {
             throw new RuntimeException("More players to add " + teamAPlayerIndex + ", " + teamBPlayerIndex);
         }
 
@@ -296,10 +428,6 @@ public class Pitch {
 
     private LocationItems getLocationItems(Location location) {
         return itemsByLocation.get(location);
-    }
-
-    private Team getOpponent(Team team) {
-        return team.equals(teamA) ? teamB : teamA;
     }
 
     private boolean isOpponent(Team team, Team opponent) {
@@ -321,6 +449,8 @@ public class Pitch {
         for (int x = 0; x < WIDTH * 2; x++) {
             if (x >= (WIDTH - 3) && x < (WIDTH + 3)) {
                 sb.append("G");
+            } else if (x == (WIDTH - 4) || x == (WIDTH + 3)) {
+                sb.append("|");
             } else {
                 sb.append("-");
             }
@@ -337,7 +467,8 @@ public class Pitch {
                 Location location = pitch[x][y];
                 LocationItems locationItems = getLocationItems(location);
 
-                if (locationItems != null) {
+                if (locationItems.getPlayer().isPresent() || locationItems.hasBall()) {
+
                     if (locationItems.hasBall()) {
                         sb.append("B");
                         rowHasBall = true;
@@ -388,8 +519,10 @@ public class Pitch {
         for (int x = 0; x < WIDTH * 2; x++) {
             if (x >= (WIDTH - 3) && x < (WIDTH + 3)) {
                 sb.append("G");
+            } else if (x == (WIDTH - 4) || x == (WIDTH + 3)) {
+                sb.append("|");
             } else {
-                sb.append("-");
+                sb.append("=");
             }
         }
 

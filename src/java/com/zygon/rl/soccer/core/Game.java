@@ -41,17 +41,21 @@ public class Game {
     public GameActions getAvailable(Team team) {
         GameActions availableGameActions = new GameActions();
 
-        // TODO
+        // TODO: stats/zone/etc management
 //        for (Player player : team.getPlayers()) {
 //            availableGameActions.add(ManagerAction.MANAGER_PLAYER_STATS, player);
 //            availableGameActions.add(ManagerAction.MANAGER_PLAYER_ZONE, player);
 //        }
+//
         for (Player player : team.getPlayers()) {
             if (team.hasPlayer(player)) {
 
                 // Yay, I have the ball!
                 if (pitch.hasBall(player)) {
-                    availableGameActions.add(PlayerAction.shoot(player));
+
+                    for (Location goalLocation : pitch.getGoalLocations(pitch.getOpponent(team))) {
+                        availableGameActions.add(PlayerAction.shoot(player, goalLocation));
+                    }
 
                     for (Player teammate : team.getTeammates(player)) {
                         availableGameActions.add(PlayerAction.pass(player, teammate));
@@ -99,6 +103,7 @@ public class Game {
         }
 
         PlayerAction action = playerActions.iterator().next();
+        Pitch.PlayResult result = null;
 
         switch (action.getAction()) {
             case PASS:
@@ -109,18 +114,24 @@ public class Game {
                     throw new IllegalStateException("Player doesn't have ball");
                 }
 
-                pitch.pass(to);
+                result = pitch.pass(to);
                 break;
             case SHOOT:
-                // shoot!
-                if (pitch.shoot()) {
-                    System.out.println("GOAAAAAALLLLL");
-                    // TODO: keep score/stats
-                }
+                Location goalLocation = action.getLocation();
+
+                result = pitch.pass(goalLocation);
+//                    System.out.println("GOAAAAAALLLLL");
+                // TODO: keep score/stats
                 break;
         }
 
-        // TODO: the fun parts
+        System.out.println(result.getDisplayString());
+
+        if (result.isGoal()) {
+            System.exit(0);
+        }
+        // TODO: if goal, .. do something
+        // TODO: update live game stats/scores
     }
 
     Team getHomeTeam() {
@@ -160,7 +171,9 @@ public class Game {
 
             gameAction.add(randomPlayerAction.get(0));
         } else {
-            gameAction.add(PlayerAction.shoot(game.playerHasPossession()));
+            // hardcoded location to shoot at
+            Location goalLocation = game.getPitch().getGoalLocations(game.teamHasPossession()).get(3);
+            gameAction.add(PlayerAction.shoot(game.playerHasPossession(), goalLocation));
         }
 
         // apply to game
