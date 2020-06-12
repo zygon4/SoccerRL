@@ -29,7 +29,9 @@ public final class Location {
     }
 
     public List<Location> getPath(Location o) {
-        return this.identifier.getPath(o.identifier).stream()
+        List<Identifier> path = this.identifier.getPath(o.identifier);
+
+        return path.stream()
                 .map(id -> new Location(id))
                 .collect(Collectors.toList());
     }
