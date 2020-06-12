@@ -247,31 +247,35 @@ public class Pitch {
         PlayResult result = null;
 
         if (!intercepted.get()) {
-
-            List<Location> goalLocations = getGoalLocations(getOpponent(teamHasPossession()));
+            Team opponent = getOpponent(teamHasPossession());
+            List<Location> goalLocations = getGoalLocations(opponent);
             boolean score = goalLocations.stream()
                     .filter(loc -> loc.equals(targetLocation))
                     .findAny().orElse(null) != null;
 
             getLocationItems(ballLocation).setHasBall(false);
-            getLocationItems(targetLocation).setHasBall(true);
-            ballLocation = targetLocation;
 
             if (score) {
+                // Give to random player, probably not good. Should have a "set game" method.
+                Set<Player> potentionalPossessor = new HashSet<>(opponent.getPlayers());
+                Player player = potentionalPossessor.iterator().next();
+                Location afterScorePossessionLocation = getLocation(player);
+
+                getLocationItems(afterScorePossessionLocation).setHasBall(true);
+                ballLocation = afterScorePossessionLocation;
+
                 result = PlayResult.goal(passer, targetLocation);
             } else {
+                getLocationItems(targetLocation).setHasBall(true);
+                ballLocation = targetLocation;
                 result = PlayResult.pass(passer, targetLocation, target);
             }
         } else {
             getLocationItems(ballLocation).setHasBall(false);
-            Team hasPossession = teamHasPossession();
-            Team gainsPossession = getOpponent(hasPossession);
 
             Player playerWithBall = interceptingPlayer.get(0);
-
             Location possessionLocation = getLocation(playerWithBall);
             getLocationItems(possessionLocation).setHasBall(true);
-
             ballLocation = possessionLocation;
 
             result = PlayResult.passDefended(passer, targetLocation, target, playerWithBall);

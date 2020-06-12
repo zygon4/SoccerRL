@@ -117,20 +117,17 @@ public class Game {
                 result = pitch.pass(to);
                 break;
             case SHOOT:
+                // "pass" to goal
                 Location goalLocation = action.getLocation();
-
                 result = pitch.pass(goalLocation);
-//                    System.out.println("GOAAAAAALLLLL");
-                // TODO: keep score/stats
                 break;
+            default:
+                throw new IllegalStateException();
         }
 
+        // TODO: keep score/stats
         System.out.println(result.getDisplayString());
 
-        if (result.isGoal()) {
-            System.exit(0);
-        }
-        // TODO: if goal, .. do something
         // TODO: update live game stats/scores
     }
 
