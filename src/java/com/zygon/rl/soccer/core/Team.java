@@ -2,6 +2,7 @@ package com.zygon.rl.soccer.core;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  *
@@ -33,9 +34,9 @@ public class Team {
             throw new IllegalStateException("team doesnt have player " + player.toString());
         }
 
-        Set<Player> teammates = new HashSet<>(this.players);
-        teammates.remove(player);
-        return teammates;
+        return this.players.stream()
+                .filter(p -> !p.equals(player))
+                .collect(Collectors.toSet());
     }
 
     public boolean hasPlayer(Player player) {
