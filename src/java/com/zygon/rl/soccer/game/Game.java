@@ -3,7 +3,17 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package com.zygon.rl.soccer.core;
+package com.zygon.rl.soccer.game;
+
+import com.zygon.rl.soccer.core.Action;
+import com.zygon.rl.soccer.core.Formation;
+import com.zygon.rl.soccer.core.Location;
+import com.zygon.rl.soccer.core.Pitch;
+import com.zygon.rl.soccer.core.Player;
+import com.zygon.rl.soccer.core.PlayerAction;
+import com.zygon.rl.soccer.core.Team;
+import com.zygon.rl.soccer.strategy.Formations;
+import com.zygon.rl.soccer.utils.Utils;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -11,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
-import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -27,7 +37,7 @@ public class Game {
     public Game(Team homeTeam, Team awayTeam) {
         this.homeTeam = homeTeam;
         this.awayTeam = awayTeam;
-        this.pitch = new Pitch(this.homeTeam, this.awayTeam);
+        this.pitch = new Pitch(this.homeTeam, this.awayTeam, Formations._4_4_2);
     }
 
     public Team teamHasPossession() {
@@ -47,7 +57,13 @@ public class Game {
 //            availableGameActions.add(ManagerAction.MANAGER_PLAYER_ZONE, player);
 //        }
 //
+        // TODO: other manager actions
+        for (Formation formation : Formations.FORMATIONS) {
+            availableGameActions.add(ManagerAction.setFormation(formation));
+        }
+
         for (Player player : team.getPlayers()) {
+            //TBD: why double check?
             if (team.hasPlayer(player)) {
 
                 // Yay, I have the ball!
@@ -76,39 +92,54 @@ public class Game {
     // private testing version, just take random available actions
     private GameActions TESTapplyGameActions(GameActions availableGameActions) {
 
-        Map.Entry<ManagerAction, Set<Player>> next = availableGameActions.getManagerActions()
-                .entrySet().iterator().next();
+        ManagerAction next = availableGameActions.getManagerActions().iterator().next();
 
         GameActions newActions = new GameActions();
 
-        if (next.getKey() == ManagerAction.CANCEL) {
+        if (next.getAction() == ManagerAction.Action.CANCEL) {
             pitch.setSidebar(Pitch.Sidebar.TEAMS, Optional.empty());
         } else {
-            pitch.setSidebar(Pitch.Sidebar.PLAYER_INFO, Optional.of(next.getValue().iterator().next()));
+            // TODO:
+//            pitch.setSidebar(Pitch.Sidebar.PLAYER_INFO, Optional.of(next));
 
             // depending on action taken, only certain available actions
             // in this test case we're taking a management action, so only "cancel" is allowed
-            newActions.add(ManagerAction.CANCEL, null);
+            newActions.add(ManagerAction.create(ManagerAction.Action.CANCEL));
         }
 
         return newActions;
     }
 
-    public void apply(GameActions gameActions) {
-
-        Set<PlayerAction> playerActions = gameActions.getPlayerActions();
-        // Should just be 1 action
-        if (playerActions.size() != 1) {
-            throw new IllegalStateException("1 action expected");
+    public void apply(Action action) {
+        // Sad casting :(
+        if (action instanceof PlayerAction) {
+            apply((PlayerAction) action);
+        } else if (action instanceof ManagerAction) {
+            apply((ManagerAction) action);
         }
+    }
 
-        PlayerAction action = playerActions.iterator().next();
+    public void apply(ManagerAction managerAction) {
+
+        switch (managerAction.getAction()) {
+            case MANAGER_TEAM_FORMATION:
+                Formation formation = managerAction.getFormation();
+
+                // TODO: pitch.set(stuff)
+                break;
+        }
+    }
+
+    public void apply(PlayerAction playerAction) {
+
+//        Set<ManagerAction> managerActions = gameActions.getManagerActions();
+//        Set<PlayerAction> playerActions = gameActions.getPlayerActions();
         Pitch.PlayResult result = null;
 
-        switch (action.getAction()) {
+        switch (playerAction.getAction()) {
             case PASS:
-                Player from = action.getPlayer();
-                Player to = action.getTeammate();
+                Player from = playerAction.getPlayer();
+                Player to = playerAction.getTeammate();
 
                 if (!pitch.hasBall(from)) {
                     throw new IllegalStateException("Player doesn't have ball");
@@ -118,7 +149,7 @@ public class Game {
                 break;
             case SHOOT:
                 // "pass" to goal
-                Location goalLocation = action.getLocation();
+                Location goalLocation = playerAction.getLocation();
                 result = pitch.pass(goalLocation);
                 break;
             default:
@@ -157,7 +188,7 @@ public class Game {
         System.out.println("Available actions:");
         System.out.println(availableGameActions);
 
-        GameActions gameAction = new GameActions();
+        PlayerAction playerAction = null;
 
         // 15% chance of shooting, otherwise pass
         if (rand.nextDouble() < .85) {
@@ -166,15 +197,15 @@ public class Game {
                     .collect(Collectors.toList());
             Collections.shuffle(randomPlayerAction);
 
-            gameAction.add(randomPlayerAction.get(0));
+            playerAction = randomPlayerAction.get(0);
         } else {
             // hardcoded location to shoot at
-            Location goalLocation = game.getPitch().getGoalLocations(game.teamHasPossession()).get(3);
-            gameAction.add(PlayerAction.shoot(game.playerHasPossession(), goalLocation));
+            Location goalLocation = game.getPitch().getGoalLocations(game.getPitch().defendingTeam()).get(3);
+            playerAction = PlayerAction.shoot(game.playerHasPossession(), goalLocation);
         }
 
         // apply to game
-        game.apply(gameAction);
+        game.apply(playerAction);
     }
 
     private static void runScenarios(Game game) {
@@ -227,9 +258,8 @@ public class Game {
             if (game.teamHasPossession().getName().equals(playerTeam)) {
                 GameActions availableGameActions = game.getAvailable(game.teamHasPossession());
 
-                GameActions gameAction = getPlayerAction(availableGameActions);
-
-                game.apply(gameAction);
+                Action action = getAction(availableGameActions);
+                game.apply(action);
             } else {
                 // AI turn
                 runPassDrillStep(game, rand);
@@ -237,16 +267,14 @@ public class Game {
         }
     }
 
-    // TODO: shape
-    public static GameActions getPlayerAction(GameActions availableGameActions) {
+    public static Action getAction(GameActions availableGameActions) {
 
         System.out.println("Available actions:");
-//        System.out.println(availableGameActions);
-        Map<Integer, PlayerAction> labeledPlayerActions = availableGameActions.getLabeledPlayerActions();
+        Map<Integer, UUID> labeledPlayerActions = availableGameActions.getLabeledPlayerActions();
 
         String inputOptions = labeledPlayerActions.entrySet()
                 .stream()
-                .map(e -> e.getKey() + "=\"" + e.getValue() + "\"")
+                .map(e -> e.getKey() + "=\"" + availableGameActions.get(e.getValue()).getDisplayString() + "\"")
                 .collect(Collectors.joining("\n"));
 
         Integer input = null;
@@ -270,10 +298,7 @@ public class Game {
             }
         }
 
-        GameActions playerAction = new GameActions();
-        playerAction.add(labeledPlayerActions.get(input));
-
-        return playerAction;
+        return availableGameActions.get(labeledPlayerActions.get(input));
     }
 
     /**
@@ -294,6 +319,7 @@ public class Game {
 
         Team team = new Team(name);
 
+        // TODO: add keeper
         for (int i = 0; i < 10; i++) {
             int playerNumber = rand.nextInt(10);
             playerNumber = ((i == 0 ? 1 : i) * 10) + playerNumber;

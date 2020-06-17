@@ -20,6 +20,9 @@ public final class LocationItems {
     }
 
     void setPlayer(Player player) {
+        if (player != null && this.player != null) {
+            throw new IllegalStateException("Player already set");
+        }
         this.player = player;
     }
 

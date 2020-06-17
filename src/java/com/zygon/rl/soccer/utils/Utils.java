@@ -1,4 +1,4 @@
-package com.zygon.rl.soccer.core;
+package com.zygon.rl.soccer.utils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -9,7 +9,7 @@ import java.util.Optional;
  *
  * @author zygon
  */
-class Utils {
+public class Utils {
 
     private Utils() {
         // private ctr

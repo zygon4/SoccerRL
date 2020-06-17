@@ -4,7 +4,7 @@ package com.zygon.rl.soccer.core;
  *
  * @author zygon
  */
-public final class PlayerAction {
+public final class PlayerAction extends Action {
 
     public enum Action {
 
@@ -54,7 +54,8 @@ public final class PlayerAction {
         return location;
     }
 
-    public String toDisplayString() {
+    @Override
+    public String getDisplayString() {
         StringBuilder sb = new StringBuilder();
 
         sb.append(getPlayer()).append(" ").append(getAction().name());
@@ -67,6 +68,6 @@ public final class PlayerAction {
 
     @Override
     public String toString() {
-        return toDisplayString();
+        return getDisplayString();
     }
 }

@@ -1,9 +1,13 @@
 package com.zygon.rl.soccer.core;
 
+import com.zygon.rl.soccer.strategy.FormationHelper;
+import com.zygon.rl.soccer.utils.Utils;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -123,17 +127,19 @@ public class Pitch {
     private final Map<Location, LocationItems> itemsByLocation = new HashMap<>();
     private final Team teamA;
     private final Team teamB;
+    private final Formation defaultFormation;
     private final List<String> gameLog = new ArrayList<>();
     private final Random rand = new Random();
     private Location ballLocation = null;
     private Sidebar sidebar = Sidebar.TEAMS;
     private Player sidebarPlayer = null; // optional
 
-    public Pitch(Team teamA, Team teamB) {
+    public Pitch(Team teamA, Team teamB, Formation defaultFormation) {
         this.teamA = teamA;
         this.teamB = teamB;
+        this.defaultFormation = defaultFormation;
 
-        fillPitch(pitch, this.teamA, this.teamB);
+        fillPitch(this.teamA, this.teamB, this.defaultFormation);
     }
 
     public List<String> getGameLog() {
@@ -142,6 +148,10 @@ public class Pitch {
 
     public List<Location> getGoalLocations(Team team) {
         return orderedGoalLocationsByTeam.get(team);
+    }
+
+    public Team defendingTeam() {
+        return getOpponent(teamHasPossession());
     }
 
     public Team teamHasPossession() {
@@ -255,6 +265,14 @@ public class Pitch {
 
             getLocationItems(ballLocation).setHasBall(false);
 
+            // Score or not:
+            // Give to random player, not good. Should have a "set game" method.
+//            Set<Player> potentionalPossessor = new HashSet<>(opponent.getPlayers());
+//            Player player = potentionalPossessor.iterator().next();
+//            Location afterPassPossessionLocation = getLocation(player);
+//
+//            getLocationItems(afterPassPossessionLocation).setHasBall(true);
+//            ballLocation = afterPassPossessionLocation;
             if (score) {
                 // Give to random player, probably not good. Should have a "set game" method.
                 Set<Player> potentionalPossessor = new HashSet<>(opponent.getPlayers());
@@ -286,58 +304,7 @@ public class Pitch {
         return result;
     }
 
-    // TODO: use some of this logic to flush out post-goal mechanics
-    @Deprecated
-    public boolean shoot(Location goalLocation) {
-
-        boolean score = false;
-
-        // score
-        // TODO: LOS to goal and defenders before possible block
-        if (rand.nextDouble() > 0.80) {
-            getLocationItems(ballLocation).setHasBall(false);
-
-            gameLog.add("#" + getLocationItems(ballLocation).getPlayer().get().getNumber()
-                    + " GOAL!");
-
-            // For now just pick random player from other team
-            Team hasPossession = teamHasPossession();
-            Team opposingTeam = getOpponent(hasPossession);
-
-            Set<Player> potentionalPossessor = new HashSet<>(opposingTeam.getPlayers());
-            Player player = potentionalPossessor.iterator().next();
-
-            Location afterScorePossessionLocation = getLocation(player);
-            getLocationItems(ballLocation).setHasBall(false);
-            // could be the same location
-            getLocationItems(afterScorePossessionLocation).setHasBall(true);
-            ballLocation = afterScorePossessionLocation;
-
-            score = true;
-        } else {
-            // block, ball goes randomly near the goal
-            Team possessingTeam = teamHasPossession();
-            Team opposingTeam = getOpponent(possessingTeam);
-
-            Set<Player> potentionalPossessor = new HashSet<>(possessingTeam.getPlayers());
-            potentionalPossessor.addAll(opposingTeam.getPlayers());
-            Player player = potentionalPossessor.iterator().next();
-
-            Location afterBlockPossessionLocation = getLocation(player);
-            getLocationItems(ballLocation).setHasBall(false);
-            // could be the same location
-            getLocationItems(afterBlockPossessionLocation).setHasBall(true);
-
-            gameLog.add("#" + getLocationItems(ballLocation).getPlayer().get().getNumber()
-                    + " shot blocked, recovered by #" + player.getNumber() + " of " + player.getTeam().getName());
-
-            ballLocation = afterBlockPossessionLocation;
-        }
-
-        return score;
-    }
-
-    void setSidebar(Sidebar sidebar, Optional<Player> player) {
+    public void setSidebar(Sidebar sidebar, Optional<Player> player) {
         this.sidebar = Objects.requireNonNull(sidebar);
         this.sidebarPlayer = player.orElse(null);
     }
@@ -355,16 +322,58 @@ public class Pitch {
         return playerInfo;
     }
 
-    // TBD: with a player squad/formation guide
-    private void fillPitch(Location[][] pitch, Team home, Team away) {
+    private Set<Location> getSpaced(FormationHelper formationHelper, int count, int minHeight, int maxHeight) {
+        Set<Location> locations = new HashSet<>();
 
-        boolean hasBall = false;
+        for (int x : formationHelper.getRandomWidths(count)) {
+            int randHeight = minHeight + rand.nextInt(maxHeight - minHeight);
+            locations.add(new Location(x, randHeight));
+        }
 
-        List<Player> homePlayers = new ArrayList<>(home.getPlayers());
-        int teamAPlayerIndex = 0;
+        return locations;
+    }
 
-        List<Player> awayPlayers = new ArrayList<>(away.getPlayers());
-        int teamBPlayerIndex = 0;
+    // from height of 0
+    private Set<Location> setPitch(Team team, Formation formation, boolean reversed) {
+
+        FormationHelper helper = new FormationHelper(formation, HEIGHT, WIDTH);
+        // TODO: should be sorted or organized by position
+        Iterator<Player> players = team.getPlayers().iterator();
+        List<Integer> playerCountAtZone = formation.getPlayerCountAtZone();
+
+        int zone = 0;
+        int zonePlayerCount = playerCountAtZone.get(zone);
+        int zoneMin = 0;
+        int zoneHeight = helper.getHeight(zone);
+        Set<Location> zoneLocations = getSpaced(helper, zonePlayerCount, 0, helper.getHeight(zone));
+
+        for (int y = 0; y < HEIGHT; y++) {
+
+            if (y >= zoneMin + zoneHeight) {
+                zone++;
+                zoneHeight = helper.getHeight(zone);
+                zonePlayerCount = playerCountAtZone.get(zone);
+                zoneMin = y;
+                zoneLocations.addAll(getSpaced(helper, zonePlayerCount, zoneMin, zoneMin + zoneHeight));
+            }
+        }
+
+        for (Location loc : zoneLocations) {
+
+            Location trueLocation = loc;
+            if (reversed) {
+                int reverse = HEIGHT - loc.getY() - 1;
+                trueLocation = loc.setY(reverse);
+            }
+
+            LocationItems items = getLocationItems(trueLocation);
+            items.setPlayer(players.next());
+        }
+
+        return zoneLocations;
+    }
+
+    private void fillPitch(Team home, Team away, Formation formation) {
 
         // The goal "hitbox" is right in front of the goals. This is beause there's
         // an issue with the path finding from positive to negative grid space and
@@ -388,46 +397,18 @@ public class Pitch {
                 pitch[x][y] = new Location(x, y);
 
                 LocationItems locationItems = new LocationItems();
-                if (teamAPlayerIndex < homePlayers.size() || teamBPlayerIndex < awayPlayers.size()) {
-                    if (rand.nextDouble() > 0.96) {
-                        Player player = null;
-
-                        // Total garbage player positioning
-                        if (rand.nextBoolean()) {
-                            if (teamAPlayerIndex < homePlayers.size()) {
-                                player = homePlayers.get(teamAPlayerIndex++);
-                            } else if (teamBPlayerIndex < awayPlayers.size()) {
-                                player = awayPlayers.get(teamBPlayerIndex++);
-                            }
-                        } else {
-                            if (teamBPlayerIndex < awayPlayers.size()) {
-                                player = awayPlayers.get(teamBPlayerIndex++);
-                            } else if (teamAPlayerIndex < homePlayers.size()) {
-                                player = homePlayers.get(teamAPlayerIndex++);
-                            }
-                        }
-
-                        if (!hasBall) {
-                            locationItems.setHasBall(true);
-                            hasBall = true;
-                            ballLocation = pitch[x][y];
-                        }
-
-                        locationItems.setPlayer(player);
-                    }
-                }
-
                 itemsByLocation.put(pitch[x][y], locationItems);
             }
         }
 
-        if (teamAPlayerIndex < homePlayers.size() || teamBPlayerIndex < awayPlayers.size()) {
-            throw new RuntimeException("More players to add " + teamAPlayerIndex + ", " + teamBPlayerIndex);
-        }
+        Set<Location> homePlayerLocations = setPitch(home, formation, false);
 
-        if (!hasBall) {
-            throw new RuntimeException("No ball");
-        }
+        Location randomPlayerLoc = homePlayerLocations.iterator().next();
+        getLocationItems(randomPlayerLoc).setHasBall(true);
+        ballLocation = randomPlayerLoc;
+
+        // TODO: fix this - there is an off-by one
+        setPitch(away, formation, true);
     }
 
     private LocationItems getLocationItems(Location location) {

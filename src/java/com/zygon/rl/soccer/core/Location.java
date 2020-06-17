@@ -50,6 +50,14 @@ public final class Location {
         return y;
     }
 
+    public Location setX(int x) {
+        return new Location(x, this.y);
+    }
+
+    public Location setY(int y) {
+        return new Location(this.x, y);
+    }
+
     @Override
     public final String toString() {
         return x + "/" + y;

@@ -1,4 +1,4 @@
-package com.zygon.rl.soccer.core;
+package com.zygon.rl.soccer.utils;
 
 /**
  *

@@ -1,4 +1,10 @@
-package com.zygon.rl.soccer.core;
+package com.zygon.rl.soccer.game;
+
+import com.zygon.rl.soccer.core.Location;
+import com.zygon.rl.soccer.core.Player;
+import com.zygon.rl.soccer.core.PlayerAction;
+import com.zygon.rl.soccer.core.Team;
+import com.zygon.rl.soccer.utils.Pair;
 
 import java.util.Map;
 
