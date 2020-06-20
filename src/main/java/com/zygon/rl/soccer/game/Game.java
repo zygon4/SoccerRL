@@ -17,6 +17,7 @@ import com.zygon.rl.soccer.utils.Utils;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,11 +34,19 @@ public class Game {
     private final Team homeTeam;
     private final Team awayTeam;
     private final Pitch pitch;
+    private final Map<Team, Score> scoresByTeam = new HashMap<>();
 
     public Game(Team homeTeam, Team awayTeam) {
         this.homeTeam = homeTeam;
         this.awayTeam = awayTeam;
         this.pitch = new Pitch(this.homeTeam, this.awayTeam, Formations._4_4_2);
+
+        scoresByTeam.put(homeTeam, new Score(homeTeam));
+        scoresByTeam.put(awayTeam, new Score(awayTeam));
+    }
+
+    public Score get(Team team) {
+        return scoresByTeam.get(team);
     }
 
     public Team teamHasPossession() {
@@ -58,10 +67,10 @@ public class Game {
 //        }
 //
         // TODO: other manager actions
-        for (Formation formation : Formations.FORMATIONS) {
-            availableGameActions.add(ManagerAction.setFormation(formation));
-        }
-
+//        for (Formation formation : Formations.FORMATIONS) {
+//            availableGameActions.add(ManagerAction.setFormation(formation));
+//        }
+//
         for (Player player : team.getPlayers()) {
             //TBD: why double check?
             if (team.hasPlayer(player)) {
@@ -134,6 +143,7 @@ public class Game {
 
 //        Set<ManagerAction> managerActions = gameActions.getManagerActions();
 //        Set<PlayerAction> playerActions = gameActions.getPlayerActions();
+        Score score = get(teamHasPossession());
         Pitch.PlayResult result = null;
 
         switch (playerAction.getAction()) {
@@ -151,13 +161,29 @@ public class Game {
                 // "pass" to goal
                 Location goalLocation = playerAction.getLocation();
                 result = pitch.pass(goalLocation);
+
+                if (!result.isGoal()) {
+                    score.addSOG();
+                }
                 break;
             default:
                 throw new IllegalStateException();
         }
 
+        // Resulted in a goal
+        if (result.isGoal()) {
+            score.addGoal();
+        }
+
+        // Kept possession
+        if (result.getDefendingPlayer().isEmpty()) {
+            score.addTimeOfPossession();
+        }
+
         // TODO: keep score/stats
         System.out.println(result.getDisplayString());
+
+        System.out.println(score.getDisplayString());
 
         // TODO: update live game stats/scores
     }
