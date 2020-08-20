@@ -87,9 +87,11 @@ public class Game {
                     for (Player teammate : team.getTeammates(player)) {
                         availableGameActions.add(PlayerAction.pass(player, teammate));
                     }
-                }
 
-                // TODO: MOVE ..later
+                    for (Location move : pitch.getLegalMoves(player)) {
+                        availableGameActions.add(PlayerAction.move(player, move));
+                    }
+                }
             }
         }
 
@@ -158,12 +160,13 @@ public class Game {
 
     public void apply(PlayerAction playerAction) {
 
-//        Set<ManagerAction> managerActions = gameActions.getManagerActions();
-//        Set<PlayerAction> playerActions = gameActions.getPlayerActions();
         Score score = get(teamHasPossession());
         Pitch.PlayResult result = null;
 
         switch (playerAction.getAction()) {
+            case MOVE:
+                result = pitch.move(playerAction.getPlayer(), playerAction.getLocation());
+                break;
             case PASS:
                 Player from = playerAction.getPlayer();
                 Player to = playerAction.getTeammate();

@@ -7,8 +7,7 @@ package com.zygon.rl.soccer.core;
 public final class PlayerAction extends Action {
 
     public enum Action {
-
-        // TODO: implement MOVE
+        MOVE,
         PASS,
         SHOOT;
     }
@@ -24,6 +23,10 @@ public final class PlayerAction extends Action {
         this.action = action;
         this.teammate = teammate;
         this.location = location;
+    }
+
+    public static PlayerAction move(Player player, Location location) {
+        return new PlayerAction(player, Action.MOVE, null, location);
     }
 
     // The difference between pass and shoot is subtle. Ultimately i'd like to
@@ -61,6 +64,10 @@ public final class PlayerAction extends Action {
         sb.append(getPlayer()).append(" ").append(getAction().name());
         if (getAction() == Action.PASS) {
             sb.append(" to ").append(getTeammate());
+        }
+
+        if (getAction() == Action.MOVE) {
+            sb.append(" to ").append(getLocation());
         }
 
         return sb.toString();

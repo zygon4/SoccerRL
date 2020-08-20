@@ -4,6 +4,7 @@ import com.zygon.rl.soccer.strategy.FormationHelper;
 import com.zygon.rl.soccer.utils.Utils;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -25,15 +26,18 @@ public class Pitch {
 
     public static final class PlayResult {
 
-        private final Player passer;
+        private final String playNameDisplay;
+        private final Player player;
         private final Location target;
         private final boolean goal;
         private final Player targetPlayer;
         private final Player defender;
 
-        private PlayResult(Player passer, Location target,
+        private PlayResult(String playNameDisplay, Player player, Location target,
                 Player targetPlayer, Player defender, boolean goal) {
-            this.passer = Objects.requireNonNull(passer);
+
+            this.playNameDisplay = Objects.requireNonNull(playNameDisplay);
+            this.player = Objects.requireNonNull(player);
             this.target = Objects.requireNonNull(target);
             this.targetPlayer = targetPlayer;
             this.defender = defender;
@@ -44,26 +48,30 @@ public class Pitch {
             }
         }
 
+        public static PlayResult move(Player player, Location target) {
+            return new PlayResult("moves", player, target, null, null, false);
+        }
+
         public static PlayResult pass(Player passer, Location target,
                 Player targetPlayer) {
-            return new PlayResult(passer, target, targetPlayer, null, false);
+            return new PlayResult("passes", passer, target, targetPlayer, null, false);
         }
 
         public static PlayResult passDefended(Player passer, Location target,
                 Player targetPlayer, Player defender) {
-            return new PlayResult(passer, target, targetPlayer, defender, false);
+            return new PlayResult("passes", passer, target, targetPlayer, defender, false);
         }
 
         public static PlayResult goal(Player passer, Location target) {
-            return new PlayResult(passer, target, null, null, true);
+            return new PlayResult("shoots", passer, target, null, null, true);
         }
 
         public boolean isGoal() {
             return goal;
         }
 
-        public Player getPasser() {
-            return passer;
+        public Player getPlayer() {
+            return player;
         }
 
         public Location getTarget() {
@@ -84,16 +92,15 @@ public class Pitch {
 
             StringBuilder sb = new StringBuilder();
 
-            sb.append("#").append(passer.getNumber()).append(" of ").append(passer.getTeam().getName());
+            sb.append("#").append(player.getNumber()).append(" of ").append(player.getTeam().getName());
 
             // passes to, shoot at
             if (getTargetPlayer().isPresent()) {
                 // passes to
                 Player tarPlayer = getTargetPlayer().get();
-                sb.append(" passes to #").append(tarPlayer.getNumber());
+                sb.append(" ").append(playNameDisplay).append(" to #").append(tarPlayer.getNumber());
             } else {
-                // TODO: either a "shot" on goal, or "pass" to the open field
-                sb.append(" passes to ").append(getTarget());
+                sb.append(" ").append(playNameDisplay).append(" to ").append(getTarget());
             }
 
             if (getDefendingPlayer().isPresent()) {
@@ -146,6 +153,30 @@ public class Pitch {
         return Collections.unmodifiableList(gameLog);
     }
 
+    public Collection<Location> getLegalMoves(Player player) {
+        Collection<Location> legalMoves = new ArrayList<>();
+
+        for (Location location : getNeighborLocations(getLocation(player))) {
+            LocationItems locationItems = getLocationItems(location);
+            if (locationItems != null && (locationItems.getPlayer() == null || locationItems.getPlayer().isEmpty())) {
+                legalMoves.add(location);
+            }
+        }
+
+        return legalMoves;
+    }
+
+    /**
+     * Returns the nearest neighbors. HOWEVER, this only returns the n/s/e/w, no
+     * diagonals. TODO: add diagonals.
+     *
+     * @param location
+     * @return
+     */
+    public Collection<Location> getNeighborLocations(Location location) {
+        return location.getRadius(location, 1);
+    }
+
     public List<Location> getGoalLocations(Team team) {
         return orderedGoalLocationsByTeam.get(team);
     }
@@ -187,6 +218,27 @@ public class Pitch {
     public boolean hasBall(Player player) {
         Location playerLocation = getLocation(player);
         return playerLocation.equals(ballLocation);
+    }
+
+    // Move is similar to a short pass. neighboring defenders can still intercept.
+    // TODO: add defense
+    public PlayResult move(Player player, Location location) {
+        // Start with just a move, no defense.
+
+        Location playerLocation = getLocation(player);
+        getLocationItems(playerLocation).setHasBall(false);
+        getLocationItems(playerLocation).setPlayer(null);
+
+        getLocationItems(location).setHasBall(true);
+        getLocationItems(location).setPlayer(player);
+
+        ballLocation = location;
+
+        PlayResult result = PlayResult.move(player, location);
+
+        gameLog.add(result.getDisplayString());
+
+        return result;
     }
 
     // TODO: Pass to a location (to be auto-retrieved for now unless a goal)
