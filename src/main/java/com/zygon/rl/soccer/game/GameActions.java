@@ -16,9 +16,15 @@ import java.util.UUID;
  */
 public class GameActions {
 
+    private final Set<HumanAction> humanActions = new LinkedHashSet<>();
     private final Set<ManagerAction> managerActions = new LinkedHashSet<>();
     private final Set<PlayerAction> playerActions = new LinkedHashSet<>();
     private final Map<UUID, Action> actionsByUuid = new LinkedHashMap<>();
+
+    void add(HumanAction humanAction) {
+        add(humanAction.getUuid(), humanAction);
+        humanActions.add(humanAction);
+    }
 
     void add(PlayerAction playerAction) {
         add(playerAction.getUuid(), playerAction);
@@ -28,6 +34,10 @@ public class GameActions {
     void add(ManagerAction managerAction) {
         add(managerAction.getUuid(), managerAction);
         this.managerActions.add(managerAction);
+    }
+
+    public Set<HumanAction> getHumanActions() {
+        return Collections.unmodifiableSet(humanActions);
     }
 
     public Set<ManagerAction> getManagerActions() {

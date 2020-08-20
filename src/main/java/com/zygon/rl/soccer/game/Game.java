@@ -70,7 +70,9 @@ public class Game {
 //        for (Formation formation : Formations.FORMATIONS) {
 //            availableGameActions.add(ManagerAction.setFormation(formation));
 //        }
-//
+        availableGameActions.add(HumanAction.PLAY_VS_PC);
+        availableGameActions.add(HumanAction.QUIT);
+
         for (Player player : team.getPlayers()) {
             //TBD: why double check?
             if (team.hasPlayer(player)) {
@@ -121,10 +123,25 @@ public class Game {
 
     public void apply(Action action) {
         // Sad casting :(
-        if (action instanceof PlayerAction) {
+        if (action instanceof HumanAction) {
+            apply((HumanAction) action);
+        } else if (action instanceof PlayerAction) {
             apply((PlayerAction) action);
         } else if (action instanceof ManagerAction) {
             apply((ManagerAction) action);
+        }
+    }
+
+    public void apply(HumanAction humanAction) {
+
+        switch (humanAction.getAction()) {
+            case QUIT:
+                // TODO: confirmation context
+                System.exit(0);
+
+            case PLAY_VS_PC:
+                playVsPc(this, homeTeam.getName(), 20);
+                break;
         }
     }
 
@@ -340,7 +357,7 @@ public class Game {
         playVsPc(game, "USA", 20);
     }
 
-    private static Team createTeam(String name) {
+    public static Team createTeam(String name) {
         Random rand = new Random();
 
         Team team = new Team(name);
