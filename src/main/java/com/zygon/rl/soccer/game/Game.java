@@ -80,17 +80,23 @@ public class Game {
                 // Yay, I have the ball!
                 if (pitch.hasBall(player)) {
 
+                    // shooting options
                     for (Location goalLocation : pitch.getGoalLocations(pitch.getOpponent(team))) {
                         availableGameActions.add(PlayerAction.shoot(player, goalLocation));
                     }
 
+                    // passing options
                     for (Player teammate : team.getTeammates(player)) {
                         availableGameActions.add(PlayerAction.pass(player, teammate));
                     }
+                }
 
-                    for (Location move : pitch.getLegalMoves(player)) {
-                        availableGameActions.add(PlayerAction.move(player, move));
-                    }
+                // TODO: movement "sets" where multiple moves are queued and
+                // they're resolved
+                //
+                // movement options
+                for (Location move : pitch.getLegalMoves(player)) {
+                    availableGameActions.add(PlayerAction.move(player, move));
                 }
             }
         }

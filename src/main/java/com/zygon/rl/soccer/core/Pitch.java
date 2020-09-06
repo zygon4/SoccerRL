@@ -226,13 +226,17 @@ public class Pitch {
         // Start with just a move, no defense.
 
         Location playerLocation = getLocation(player);
-        getLocationItems(playerLocation).setHasBall(false);
-        getLocationItems(playerLocation).setPlayer(null);
 
-        getLocationItems(location).setHasBall(true);
+        boolean playerHasBall = hasBall(player);
+
+        getLocationItems(playerLocation).setPlayer(null);
         getLocationItems(location).setPlayer(player);
 
-        ballLocation = location;
+        if (playerHasBall) {
+            getLocationItems(playerLocation).setHasBall(false);
+            getLocationItems(location).setHasBall(true);
+            ballLocation = location;
+        }
 
         PlayResult result = PlayResult.move(player, location);
 

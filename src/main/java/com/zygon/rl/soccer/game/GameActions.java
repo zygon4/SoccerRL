@@ -33,7 +33,7 @@ public class GameActions {
 
     void add(ManagerAction managerAction) {
         add(managerAction.getUuid(), managerAction);
-        this.managerActions.add(managerAction);
+        managerActions.add(managerAction);
     }
 
     public Set<HumanAction> getHumanActions() {
