@@ -21,8 +21,8 @@ repositories {
 }
 
 dependencies {
-    implementation("org.hexworks.zircon:zircon.core-jvm:2020.1.6-HOTFIX")
-    implementation("org.hexworks.zircon:zircon.jvm.swing:2020.1.6-HOTFIX")
+    implementation("org.hexworks.zircon:zircon.core-jvm:2022.1.0-RELEASE")
+    implementation("org.hexworks.zircon:zircon.jvm.swing:2022.1.0-RELEASE")
 
 /*
   :dependencies [[org.clojure/clojure "1.10.0"]

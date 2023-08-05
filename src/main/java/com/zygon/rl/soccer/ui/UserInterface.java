@@ -13,7 +13,6 @@ import com.zygon.rl.soccer.core.PlayerGameStatus;
 import com.zygon.rl.soccer.game.Game;
 import com.zygon.rl.soccer.ui.GameStateInput;
 import com.zygon.rl.soccer.ui.UIEvent;
-import org.hexworks.cobalt.datatypes.Maybe;
 import org.hexworks.zircon.api.CP437TilesetResources;
 import org.hexworks.zircon.api.ColorThemes;
 import org.hexworks.zircon.api.Components;
@@ -73,7 +72,7 @@ public class UserInterface {
         public Sidebar(List<Component> components, Size size, Position position,
                 String title) {
             this.root = Components.vbox()
-                    .withSize(size)
+                    .withPreferredSize(size)
                     .withPosition(position)
                     .withDecorations(
                             org.hexworks.zircon.api.ComponentDecorations.box(BoxType.DOUBLE, title))
@@ -132,14 +131,14 @@ public class UserInterface {
 
             // Top info banner
             HBox gameScreenHeader = Components.hbox()
-                    .withSize(tileGrid.getSize().getWidth(), GAME_SCREEN_HEIGHT)
+                    .withPreferredSize(tileGrid.getSize().getWidth(), GAME_SCREEN_HEIGHT)
                     .withDecorations(org.hexworks.zircon.api.ComponentDecorations.box(BoxType.DOUBLE, "Info"))
                     .build();
 
             List<String> scores = List.of("SCORE! TODO"); ///game.getScoreText();
             scoreTextArea = Components.textArea()
                     .withPosition((gameScreenHeader.getSize().getWidth()) / 2, 2)
-                    .withSize(10, 2)
+                    .withPreferredSize(10, 2)
                     .withText(scores.stream().collect(Collectors.joining("\n")))
                     .build();
 
@@ -158,7 +157,7 @@ public class UserInterface {
 
             playerInfo = Components.textArea()
                     .withText("More info")
-                    .withSize(20, 20)
+                    .withPreferredSize(20, 20)
                     .withPosition(pitchLayer.getSize().getWidth(),
                             gameScreenHeader.getSize().getHeight())
                     .withDecorations(
@@ -476,9 +475,9 @@ public class UserInterface {
 
         private void setHighlight(Location location, TileColor foreground) {
             Position position = fromPitchToLayer(location);
-            Maybe<Tile> tileAt = pitchLayer.getTileAt(position);
-            if (tileAt.isPresent()) {
-                pitchLayer.draw(tileAt.get().createCopy()
+            Tile tileAt = pitchLayer.getTileAtOrNull(position);
+            if (tileAt != null) {
+                pitchLayer.draw(tileAt.createCopy()
                         .withForegroundColor(foreground), position);
             }
         }
