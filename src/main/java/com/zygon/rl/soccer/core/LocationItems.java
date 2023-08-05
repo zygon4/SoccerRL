@@ -1,5 +1,7 @@
 package com.zygon.rl.soccer.core;
 
+import com.zygon.rl.soccer.core.Ball;
+
 import java.util.Optional;
 
 /**
@@ -8,26 +10,36 @@ import java.util.Optional;
  */
 public final class LocationItems {
 
-    private boolean hasBall = false;
-    private Player player = null;
+    private Ball ball = null;
+    private PlayerGameStatus playerGameStatus = null;
 
-    void setHasBall(boolean hasBall) {
-        this.hasBall = hasBall;
+    public Optional<Player> getPlayer() {
+        return Optional.ofNullable(playerGameStatus != null
+                ? playerGameStatus.getPlayer() : null);
+    }
+
+    public Optional<PlayerGameStatus> getPlayerGameStatus() {
+        return Optional.ofNullable(playerGameStatus);
     }
 
     public boolean hasBall() {
-        return hasBall;
+        return ball != null;
     }
 
-    void setPlayer(Player player) {
-        if (player != null && this.player != null) {
+    public Ball getBall() {
+        return ball;
+    }
+
+    // TODO: finish adding a first-class ball feature
+    void setBall(Ball ball) {
+        this.ball = ball;
+    }
+
+    void setPlayerGameStatus(PlayerGameStatus playerGameStatus) {
+        if (playerGameStatus != null && this.playerGameStatus != null
+                && !playerGameStatus.getPlayer().equals(this.playerGameStatus.getPlayer())) {
             throw new IllegalStateException("Player already set");
         }
-        this.player = player;
+        this.playerGameStatus = playerGameStatus;
     }
-
-    public Optional<Player> getPlayer() {
-        return Optional.ofNullable(player);
-    }
-
 }

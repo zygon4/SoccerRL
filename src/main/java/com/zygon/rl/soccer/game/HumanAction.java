@@ -8,6 +8,7 @@ import java.util.Objects;
  *
  * @author zygon
  */
+@Deprecated
 public class HumanAction extends Action {
 
     public static final HumanAction PLAY_VS_PC = new HumanAction(Action.PLAY_VS_PC);

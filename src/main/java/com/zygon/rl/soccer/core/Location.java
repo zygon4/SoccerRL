@@ -24,6 +24,14 @@ public final class Location {
         this(id.getCoordinates()[0], id.getCoordinates()[1]);
     }
 
+    // x/y
+    public static Location parse(String location) {
+        String[] coords = location.split("/");
+        int x = Integer.parseInt(coords[0]);
+        int y = Integer.parseInt(coords[1]);
+        return new Location(x, y);
+    }
+
     public double getDistance(Location o) {
         return identifier.getDistance(o.identifier);
     }
@@ -36,7 +44,7 @@ public final class Location {
                 .collect(Collectors.toList());
     }
 
-    public Collection<Location> getRadius(Location o, long radius) {
+    public Collection<Location> getRadius(long radius) {
         return this.identifier.getNeighbors(radius).stream()
                 .map(id -> new Location(id))
                 .collect(Collectors.toList());

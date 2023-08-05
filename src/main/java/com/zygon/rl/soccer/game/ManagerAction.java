@@ -9,6 +9,7 @@ import java.util.Objects;
  *
  * @author zygon
  */
+@Deprecated
 public class ManagerAction extends Action {
 
     public enum Action {

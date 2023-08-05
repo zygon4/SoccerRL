@@ -26,6 +26,10 @@ public class Identifier implements Comparable<Identifier> {
 
     private int hash = -1;
 
+    public Location toLocation() {
+        return new Location(coordinates[0], coordinates[1]);
+    }
+
     public Identifier(int... coords) {
         Objects.requireNonNull(coords);
         if (coords.length <= 0) {
@@ -223,7 +227,9 @@ public class Identifier implements Comparable<Identifier> {
                         ids.put(neighbor, neighborVert);
                     }
 
+                    // TODO: cost based on other players there and/or in the area
                     Graph.Edge<Identifier> neighborEdge = new Graph.Edge<>(1, vertex, neighborVert);
+                    vertex.addEdge(neighborEdge);
                     if (!edges.contains(neighborEdge)) {
                         edges.add(neighborEdge);
                     }

@@ -1,5 +1,6 @@
 package com.zygon.rl.soccer.core;
 
+import com.zygon.rl.soccer.core.Ball;
 import com.zygon.rl.soccer.strategy.FormationHelper;
 import com.zygon.rl.soccer.utils.Utils;
 
@@ -33,8 +34,9 @@ public class Pitch {
         private final Player targetPlayer;
         private final Player defender;
 
-        private PlayResult(String playNameDisplay, Player player, Location target,
-                Player targetPlayer, Player defender, boolean goal) {
+        private PlayResult(String playNameDisplay, Player player,
+                Location target, Player targetPlayer, Player defender,
+                boolean goal) {
 
             this.playNameDisplay = Objects.requireNonNull(playNameDisplay);
             this.player = Objects.requireNonNull(player);
@@ -62,8 +64,18 @@ public class Pitch {
             return new PlayResult("passes", passer, target, targetPlayer, defender, false);
         }
 
+        public static PlayResult moveDefended(Player player, Location target,
+                Player targetPlayer, Player defender) {
+            // TODO: better name
+            return new PlayResult("blocked", player, target, targetPlayer, defender, false);
+        }
+
         public static PlayResult goal(Player passer, Location target) {
             return new PlayResult("shoots", passer, target, null, null, true);
+        }
+
+        public static PlayResult track(Player player, Location target) {
+            return new PlayResult("tracks", player, target, null, null, false);
         }
 
         public boolean isGoal() {
@@ -117,11 +129,17 @@ public class Pitch {
 
             return sb.toString();
         }
+
+        @Override
+        public String toString() {
+            return getDisplayString();
+        }
     }
 
-    private static final int HEIGHT = 30; // not including the goal
-    private static final int WIDTH = 20;
-    private static final int GOAL_WIDTH = 6;
+    private static final int PITCH_SCALE = 2;
+    private static final int HEIGHT = 30 * PITCH_SCALE; // not including the goal
+    private static final int WIDTH = 20 * PITCH_SCALE;
+    private static final int GOAL_WIDTH = 5 * PITCH_SCALE;
 
     // TBD: experimental
     public static enum Sidebar {
@@ -132,8 +150,8 @@ public class Pitch {
     private final Location[][] pitch = new Location[WIDTH][HEIGHT];
     private final Map<Team, List<Location>> orderedGoalLocationsByTeam = new HashMap<>(2);
     private final Map<Location, LocationItems> itemsByLocation = new HashMap<>();
-    private final Team teamA;
-    private final Team teamB;
+    private final Team homeTeam;
+    private final Team awayTeam;
     private final Formation defaultFormation;
     private final List<String> gameLog = new ArrayList<>();
     private final Random rand = new Random();
@@ -141,18 +159,29 @@ public class Pitch {
     private Sidebar sidebar = Sidebar.TEAMS;
     private Player sidebarPlayer = null; // optional
 
-    public Pitch(Team teamA, Team teamB, Formation defaultFormation) {
-        this.teamA = teamA;
-        this.teamB = teamB;
+    public Pitch(Team home, Team away, Formation defaultFormation) {
+        this.homeTeam = home;
+        this.awayTeam = away;
         this.defaultFormation = defaultFormation;
 
-        fillPitch(this.teamA, this.teamB, this.defaultFormation);
+        fillPitch(this.homeTeam, this.awayTeam, this.defaultFormation);
+    }
+
+    public Team getHomeTeam() {
+        return homeTeam;
+    }
+
+    public Team getAwayTeam() {
+        return awayTeam;
     }
 
     public List<String> getGameLog() {
         return Collections.unmodifiableList(gameLog);
     }
 
+    // This won't really scale for "dynamic" movement by many players
+    // We want each player on the pitch to have a destination and for them
+    // to move their each turn.
     public Collection<Location> getLegalMoves(Player player) {
         Collection<Location> legalMoves = new ArrayList<>();
 
@@ -174,11 +203,11 @@ public class Pitch {
      * @return
      */
     public Collection<Location> getNeighborLocations(Location location) {
-        return location.getRadius(location, 1);
+        return location.getRadius(1);
     }
 
     public List<Location> getGoalLocations(Team team) {
-        return orderedGoalLocationsByTeam.get(team);
+        return Collections.unmodifiableList(orderedGoalLocationsByTeam.get(team));
     }
 
     public Team defendingTeam() {
@@ -191,6 +220,10 @@ public class Pitch {
 
     public Player playerHasPossession() {
         return getLocationItems(ballLocation).getPlayer().get();
+    }
+
+    public Location getBallLocation() {
+        return ballLocation;
     }
 
     public Location getLocation(Player player) {
@@ -211,8 +244,18 @@ public class Pitch {
         return null;
     }
 
+    public Map<Location, LocationItems> getItemsByLocation() {
+        return Collections.unmodifiableMap(itemsByLocation);
+    }
+
     public Team getOpponent(Team team) {
-        return team.equals(teamA) ? teamB : teamA;
+        return team.equals(homeTeam) ? awayTeam : homeTeam;
+    }
+
+    public Location getRandomLocation() {
+        int height = rand.nextInt(HEIGHT);
+        int width = rand.nextInt(WIDTH);
+        return pitch[width][height];
     }
 
     public boolean hasBall(Player player) {
@@ -225,16 +268,36 @@ public class Pitch {
     public PlayResult move(Player player, Location location) {
         // Start with just a move, no defense.
 
+        if (location.getX() + 1 > WIDTH || location.getX() < 0 || location.getY() + 1 > HEIGHT || location.getY() < 0) {
+            throw new IllegalArgumentException("Cannot move to " + location);
+        }
+
         Location playerLocation = getLocation(player);
 
         boolean playerHasBall = hasBall(player);
 
-        getLocationItems(playerLocation).setPlayer(null);
-        getLocationItems(location).setPlayer(player);
+        Optional<PlayerGameStatus> playerGameStatus = getLocationItems(playerLocation).getPlayerGameStatus();
+        Optional<PlayerGameStatus> locationGameStatus = getLocationItems(location).getPlayerGameStatus();
+
+        // TODO: can move?
+        if (locationGameStatus.isPresent()) {
+            return PlayResult.moveDefended(player, location,
+                    locationGameStatus.get().getPlayer(),
+                    locationGameStatus.get().getPlayer());
+        }
+
+        getLocationItems(playerLocation).setPlayerGameStatus(null);
+        getLocationItems(location).setPlayerGameStatus(playerGameStatus.get());
+
+        if (playerGameStatus.get().getDestination() != null
+                && playerGameStatus.get().getDestination().equals(location)) {
+            getLocationItems(location).setPlayerGameStatus(playerGameStatus.get().setDestination(null));
+        }
 
         if (playerHasBall) {
-            getLocationItems(playerLocation).setHasBall(false);
-            getLocationItems(location).setHasBall(true);
+            Ball ball = getLocationItems(playerLocation).getBall();
+            getLocationItems(playerLocation).setBall(null);
+            getLocationItems(location).setBall(ball);
             ballLocation = location;
         }
 
@@ -243,6 +306,39 @@ public class Pitch {
         gameLog.add(result.getDisplayString());
 
         return result;
+    }
+
+    /**
+     * Returns a collection of actions to be taken to enact the goals set by the
+     * players at each location. E.g. if a player has a destination, the action
+     * returned for that location could be "move to X on this path".
+     *
+     * @return a collection of actions
+     */
+    public Collection<Action> getObjectiveActions() {
+        Collection<Action> actions = new ArrayList<>();
+
+        for (Location loc : itemsByLocation.keySet()) {
+            LocationItems items = itemsByLocation.get(loc);
+            if (items != null && items.getPlayerGameStatus().isPresent()) {
+                Location destination = items.getPlayerGameStatus().get().getDestination();
+                if (destination != null && !loc.equals(destination)) {
+                    List<Location> path = loc.getPath(destination);
+                    // TODO: astar search around players
+                    // TODO: use diags! this is all manhattan..
+                    // This may be complicated
+                    //
+                    Location step = path.size() == 1 ? destination : path.get(1);
+                    actions.add(PlayerAction.move(items.getPlayer().get(), step));
+                }
+                // else this status should clear
+            } else if (items.hasBall()) {
+                Ball ball = items.getBall();
+//                BallAction.move(ballLocatiokn)
+            }
+        }
+
+        return actions;
     }
 
     // TODO: Pass to a location (to be auto-retrieved for now unless a goal)
@@ -279,14 +375,8 @@ public class Pitch {
         // of the Player and in-game stats like fatigue
         final long radius = Math.max(1L, (3 - Math.round(passer.getPower() + passer.getFinesse())));
 
-// TBD: log?
-//        System.out.println("Path from " + ballLocation + " to " + targetLocation);
-//        System.out.println(path.stream()
-//                .map(Location::toString)
-//                .collect(Collectors.joining(",")));
-//
         for (Location p : path) {
-            p.getRadius(p, radius).stream()
+            p.getRadius(radius).stream()
                     .forEach(loc -> {
                         if (!intercepted.get()) {
                             LocationItems locationItems = getLocationItems(loc);
@@ -312,6 +402,8 @@ public class Pitch {
 
         PlayResult result = null;
 
+        Ball ball = getLocationItems(ballLocation).getBall();
+
         if (!intercepted.get()) {
             Team opponent = getOpponent(teamHasPossession());
             List<Location> goalLocations = getGoalLocations(opponent);
@@ -319,37 +411,31 @@ public class Pitch {
                     .filter(loc -> loc.equals(targetLocation))
                     .findAny().orElse(null) != null;
 
-            getLocationItems(ballLocation).setHasBall(false);
+            getLocationItems(ballLocation).setBall(null);
 
             // Score or not:
             // Give to random player, not good. Should have a "set game" method.
-//            Set<Player> potentionalPossessor = new HashSet<>(opponent.getPlayers());
-//            Player player = potentionalPossessor.iterator().next();
-//            Location afterPassPossessionLocation = getLocation(player);
-//
-//            getLocationItems(afterPassPossessionLocation).setHasBall(true);
-//            ballLocation = afterPassPossessionLocation;
             if (score) {
                 // Give to random player, probably not good. Should have a "set game" method.
                 Set<Player> potentionalPossessor = new HashSet<>(opponent.getPlayers());
                 Player player = potentionalPossessor.iterator().next();
                 Location afterScorePossessionLocation = getLocation(player);
 
-                getLocationItems(afterScorePossessionLocation).setHasBall(true);
+                getLocationItems(afterScorePossessionLocation).setBall(ball);
                 ballLocation = afterScorePossessionLocation;
 
                 result = PlayResult.goal(passer, targetLocation);
             } else {
-                getLocationItems(targetLocation).setHasBall(true);
+                getLocationItems(targetLocation).setBall(ball);
                 ballLocation = targetLocation;
                 result = PlayResult.pass(passer, targetLocation, target);
             }
         } else {
-            getLocationItems(ballLocation).setHasBall(false);
+            getLocationItems(ballLocation).setBall(null);
 
             Player playerWithBall = interceptingPlayer.get(0);
             Location possessionLocation = getLocation(playerWithBall);
-            getLocationItems(possessionLocation).setHasBall(true);
+            getLocationItems(possessionLocation).setBall(ball);
             ballLocation = possessionLocation;
 
             result = PlayResult.passDefended(passer, targetLocation, target, playerWithBall);
@@ -365,6 +451,21 @@ public class Pitch {
         this.sidebarPlayer = player.orElse(null);
     }
 
+    // Set tracking status
+    // This is almost more of a manager action vs a player one..
+    public PlayResult track(Player player, Location location) {
+        Location playerLocation = getLocation(player);
+
+        Optional<PlayerGameStatus> playerGameStatus = getLocationItems(playerLocation).getPlayerGameStatus();
+        getLocationItems(playerLocation).setPlayerGameStatus(playerGameStatus.get().setDestination(location));
+
+        PlayResult result = PlayResult.track(player, location);
+
+        gameLog.add(result.getDisplayString());
+
+        return result;
+    }
+
     private List<String> createPlayerSidebarInfo(Player player) {
         List<String> playerInfo = new ArrayList<>();
 
@@ -378,19 +479,28 @@ public class Pitch {
         return playerInfo;
     }
 
-    private Set<Location> getSpaced(FormationHelper formationHelper, int count, int minHeight, int maxHeight) {
+    private Set<Location> getSpaced(FormationHelper formationHelper, int count,
+            int minHeight, int maxHeight) {
         Set<Location> locations = new HashSet<>();
 
         for (int x : formationHelper.getRandomWidths(count)) {
-            int randHeight = minHeight + rand.nextInt(maxHeight - minHeight);
-            locations.add(new Location(x, randHeight));
+            Location loc = null;
+
+            // loop to skip duplicate locations
+            do {
+                int randHeight = minHeight + rand.nextInt(maxHeight - minHeight);
+                loc = new Location(x, randHeight);
+            } while (locations.contains(loc));
+
+            locations.add(loc);
         }
 
         return locations;
     }
 
     // from height of 0
-    private Set<Location> setPitch(Team team, Formation formation, boolean reversed) {
+    private Set<Location> setPitch(Team team, Formation formation,
+            boolean reversed) {
 
         FormationHelper helper = new FormationHelper(formation, HEIGHT, WIDTH);
         // TODO: should be sorted or organized by position
@@ -423,7 +533,13 @@ public class Pitch {
             }
 
             LocationItems items = getLocationItems(trueLocation);
-            items.setPlayer(players.next());
+            Player player = null;
+            try {
+                player = players.next();
+            } catch (Throwable th) {
+                th.printStackTrace();
+            }
+            items.setPlayerGameStatus(new PlayerGameStatus(player));
         }
 
         return zoneLocations;
@@ -434,16 +550,18 @@ public class Pitch {
         // The goal "hitbox" is right in front of the goals. This is beause there's
         // an issue with the path finding from positive to negative grid space and
         // this is just easier.
+        int startingWidth = (WIDTH / 2) - (GOAL_WIDTH / 2);
+
         List<Location> homeTeamGoals = new ArrayList<>();
-        for (int i = 0; i < GOAL_WIDTH; i++) {
-            Location l = new Location(i + 8, 0);
+        for (int i = startingWidth; i < startingWidth + GOAL_WIDTH; i++) {
+            Location l = new Location(i, 0);
             homeTeamGoals.add(l);
         }
         orderedGoalLocationsByTeam.put(home, homeTeamGoals);
 
         List<Location> awayTeamGoals = new ArrayList<>();
-        for (int i = 0; i < GOAL_WIDTH; i++) {
-            Location l = new Location(i + 8, HEIGHT - 1);
+        for (int i = startingWidth; i < startingWidth + GOAL_WIDTH; i++) {
+            Location l = new Location(i, HEIGHT - 1);
             awayTeamGoals.add(l);
         }
         orderedGoalLocationsByTeam.put(away, awayTeamGoals);
@@ -460,7 +578,7 @@ public class Pitch {
         Set<Location> homePlayerLocations = setPitch(home, formation, false);
 
         Location randomPlayerLoc = homePlayerLocations.iterator().next();
-        getLocationItems(randomPlayerLoc).setHasBall(true);
+        getLocationItems(randomPlayerLoc).setBall(Ball.create(0, 0));
         ballLocation = randomPlayerLoc;
 
         // TODO: fix this - there is an off-by one
@@ -485,7 +603,7 @@ public class Pitch {
 
         StringBuilder sb = new StringBuilder();
 
-        sb.append("  ").append(teamA.getName()).append("\n");
+        sb.append("  ").append(homeTeam.getName()).append("\n");
 
         for (int x = 0; x < WIDTH * 2; x++) {
             if (x >= (WIDTH - 3) && x < (WIDTH + 3)) {
@@ -493,7 +611,7 @@ public class Pitch {
             } else if (x == (WIDTH - 4) || x == (WIDTH + 3)) {
                 sb.append("|");
             } else {
-                sb.append("-");
+                sb.append("=");
             }
         }
 
@@ -508,7 +626,7 @@ public class Pitch {
                 Location location = pitch[x][y];
                 LocationItems locationItems = getLocationItems(location);
 
-                if (locationItems.getPlayer().isPresent() || locationItems.hasBall()) {
+                if (locationItems.getPlayerGameStatus().isPresent() || locationItems.hasBall()) {
 
                     if (locationItems.hasBall()) {
                         sb.append("B");
@@ -517,16 +635,22 @@ public class Pitch {
                         sb.append(" ");
                     }
 
-                    if (locationItems.getPlayer().isPresent()) {
+                    if (locationItems.getPlayerGameStatus().isPresent()) {
+                        PlayerGameStatus playerGameStatus = locationItems.getPlayerGameStatus().get();
+                        Location trackingDest = playerGameStatus.getDestination();
+
                         Player p = locationItems.getPlayer().get();
-                        boolean isTeamA = teamA.hasPlayer(p);
+                        boolean isTeamA = homeTeam.hasPlayer(p.getNumber());
                         String playerIcon = isTeamA ? "X" : "O";
                         sb.append(playerIcon);
 
                         String playerName = p.getNumber() + "["
-                                + (isTeamA ? teamA.getName() : teamB.getName()) + "]";
+                                + (isTeamA ? homeTeam.getName() : awayTeam.getName()) + "]";
                         if (locationItems.hasBall()) {
-                            playerName += ", with ball";
+                            playerName += " with ball";
+                        }
+                        if (trackingDest != null) {
+                            playerName += " tracking to " + trackingDest;
                         }
                         playerNames.add(playerName);
                     }
@@ -569,7 +693,7 @@ public class Pitch {
 
         sb.append("\n");
 
-        sb.append("  ").append(teamB.getName()).append("\n");
+        sb.append("  ").append(awayTeam.getName()).append("\n");
 
         // print all vs last few
         for (int x = 0; x < gameLog.size(); x++) {

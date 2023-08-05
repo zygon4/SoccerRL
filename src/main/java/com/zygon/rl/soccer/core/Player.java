@@ -1,5 +1,7 @@
 package com.zygon.rl.soccer.core;
 
+import java.util.Objects;
+
 /**
  *
  * @author zygon
@@ -44,6 +46,35 @@ public class Player {
 
     public Team getTeam() {
         return team;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 3;
+        hash = 97 * hash + this.number;
+        hash = 97 * hash + Objects.hashCode(this.team);
+        return hash;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final Player other = (Player) obj;
+        if (this.number != other.number) {
+            return false;
+        }
+        if (!Objects.equals(this.team.getName(), other.team.getName())) {
+            return false;
+        }
+        return true;
     }
 
     @Override
