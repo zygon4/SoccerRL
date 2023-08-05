@@ -277,32 +277,9 @@ public class GameImpl implements Game {
             apply((PlayerAction) asyncAction);
         });
 
-        // For both teams?
-//        runPassDrillStep(pitch.getHomeTeam(), rand);
+        // For both teams for now, let them play. Human can change directions.
+        runPassDrillStep(pitch.getHomeTeam(), rand);
         runPassDrillStep(pitch.getAwayTeam(), rand);
-
-//        if (game.teamHasPossession().getName().equals(playerTeam)) {
-//            GameActions availableGameActions = game.getAvailable(game.teamHasPossession());
-//
-//            Action action = getAction(availableGameActions);
-//
-//            String argument = null;
-//            if (action.hasArgument()) {
-//                argument = getInput(action.getArgumentPrompt(), (String i) -> {
-//                    String error = action.getArgumentError(i);
-//                    if (error != null) {
-//                        return error;
-//                    }
-//
-//                    return null;
-//                }, (String i) -> i);
-//            }
-//
-//            game.apply(action, argument);
-//        } else {
-//            // AI turn
-//            runPassDrillStep(game, rand);
-//        }
     }
 
     private void checkState(State required) {
@@ -371,21 +348,6 @@ public class GameImpl implements Game {
 
         Player player = players.get(0);
 
-//        for (Player p : players) {
-//            if (player == null) {
-//                Location playerLoc = pitch.getLocation(p);
-//                LocationItems items = pitch.getItemsByLocation().get(playerLoc);
-//                if (items.getPlayerGameStatus().get().getDestination() == null) {
-//                    player = p;
-//                    break;
-//                }
-//            }
-//        }
-//
-//        if (player == null) {
-//            // Everyone is busy..
-//            return;
-//        }
         Map<PlayerAction.Action, PlayerAction.Argument> actions = getAvailablePlayerActions(Set.of(player));
         PlayerAction.Action actionKey = actions.keySet().iterator().next();
         PlayerAction.Argument actionArg = actions.get(actionKey);
@@ -415,55 +377,8 @@ public class GameImpl implements Game {
             }
         }
 
-//        switch (actionKey) {
-//            case TRACK:
-//
-//                pitch.playerAction = PlayerAction.track(player, pitch.getBallLocation());
-//                break;
-//            case PASS:
-//                switch (actionArg) {
-//                    case LOCATION:
-//                        rankedActions = PlayerAction.pass(player, pitch.getRandomLocation());
-//                        break;
-//                    case PLAYER:
-//                        // TODO: teammate
-//                        rankedActions = PlayerAction.pass(player, player);
-//                        break;
-//                }
-//                break;
-//            case SHOOT:
-//                List<Location> goalLocations = new ArrayList<>(pitch.getGoalLocations(pitch.getOpponent(team)));
-//                Collections.shuffle(goalLocations, rand);
-//                rankedActions = PlayerAction.shoot(player, goalLocations.get(0));
-//                break;
-//            default:
-//        }
         Integer key = rankedActions.keySet().iterator().next();
         PlayerAction playerAction = rankedActions.get(key);
         apply(playerAction);
-
-//        GameActions availableGameActions = getAvailable(pitch.teamHasPossession());
-//
-//        System.out.println("Available actions:");
-//        System.out.println(availableGameActions);
-//
-//        PlayerAction playerAction = null;
-//
-//        // 15% chance of shooting, otherwise pass
-//        if (rand.nextDouble() < .85) {
-//            List<PlayerAction> randomPlayerAction = availableGameActions.getPlayerActions().stream()
-//                    .filter(pa -> pa.getAction() != PlayerAction.Action.SHOOT && pa.getAction() != PlayerAction.Action.TRACK)
-//                    .collect(Collectors.toList());
-//            Collections.shuffle(randomPlayerAction);
-//
-//            playerAction = randomPlayerAction.get(0);
-//        } else {
-//            // hardcoded location to shoot at
-//            Location goalLocation = pitch.getGoalLocations(pitch.defendingTeam()).get(3);
-//            playerAction = PlayerAction.shoot(pitch.playerHasPossession(), goalLocation);
-//        }
-//
-//        // apply to game
-//        pitch.apply(playerAction, null);
     }
 }
