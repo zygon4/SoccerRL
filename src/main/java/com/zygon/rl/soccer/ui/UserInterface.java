@@ -528,7 +528,7 @@ public class UserInterface {
         }
     }
 
-    public void start() throws InterruptedException {
+    public void start() {
         // a TileGrid represents a 2D grid composed of Tiles
         TileGrid tileGrid = SwingApplications.startTileGrid(
                 AppConfig.newBuilder()
