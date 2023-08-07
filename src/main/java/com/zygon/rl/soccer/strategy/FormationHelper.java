@@ -35,7 +35,7 @@ public class FormationHelper {
 
             int x = groupWidthOffset;
             for (int xCount = 0; xCount < xGroupCount; xCount++) {
-                locations.add(new Location(x, y));
+                locations.add(Location.create(x, y));
                 x += groupWidthOffset;
             }
 

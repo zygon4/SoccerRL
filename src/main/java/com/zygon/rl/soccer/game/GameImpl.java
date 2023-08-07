@@ -77,7 +77,7 @@ public class GameImpl implements Game {
                         updates.put(entry.getKey(), removed);
                     }
                 }
-                pitch.getLocation(action.getPlayer()).getRadius(1)
+                pitch.getLocation(action.getPlayer()).getNeighbors(1)
                         .forEach(l -> updates.put(l, Set.of(TileItem.PLAYER_HIGHLIGHT)));
                 break;
             case HIGHLIGHT_PATH:

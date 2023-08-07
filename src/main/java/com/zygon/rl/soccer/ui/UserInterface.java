@@ -551,7 +551,7 @@ public class UserInterface {
 
     // Need to subtract the score screen vertical
     static Location fromTileGridToPitch(Position position) {
-        return new Location(position.getX(), position.getY() - GAME_SCREEN_HEIGHT);
+        return Location.create(position.getX(), position.getY() - GAME_SCREEN_HEIGHT);
     }
 
     private static BiConsumer<MouseEvent, UIEventPhase> handleMouseMoved(

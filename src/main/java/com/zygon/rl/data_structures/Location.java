@@ -1,4 +1,4 @@
-package com.zygon.rl.soccer.core;
+package com.zygon.rl.data_structures;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -18,8 +18,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
+ * Location
  *
- * @author zygon
  */
 public class Location {
 
@@ -203,14 +203,6 @@ public class Location {
         return z;
     }
 
-    public Location setX(int x) {
-        return Location.create(x, this.y);
-    }
-
-    public Location setY(int y) {
-        return Location.create(this.x, y);
-    }
-
     public static Location create(int x, int y, int z) {
         String hash = getDisplay(x, y, z);
 
@@ -240,6 +232,14 @@ public class Location {
         } else {
             return store(x, y, z, hash);
         }
+    }
+
+    public Location setX(int x) {
+        return Location.create(x, this.y);
+    }
+
+    public Location setY(int y) {
+        return Location.create(this.x, y);
     }
 
     private static Location store(int x, int y, int z, String hash) {

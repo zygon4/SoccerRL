@@ -186,7 +186,8 @@ public class OLDGame {
                 }
                 break;
             case TRACK:
-                Location destination = Location.parse(argument);
+                // TODO this is broken
+                Location destination = null;// Location.parse(argument);
                 result = pitch.track(playerAction.getPlayer(), destination);
                 break;
             default:

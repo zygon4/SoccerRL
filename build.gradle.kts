@@ -18,11 +18,18 @@ repositories {
     // Use jcenter for resolving dependencies.
     // You can declare any Maven/Ivy/file repository here.
     jcenter()
+    //mavenCentral()
+    maven {
+        url = uri("https://jitpack.io")
+    }
 }
 
 dependencies {
     implementation("org.hexworks.zircon:zircon.core-jvm:2022.1.0-RELEASE")
     implementation("org.hexworks.zircon:zircon.jvm.swing:2022.1.0-RELEASE")
+
+    implementation("com.google.guava:guava:32.1.2-jre")
+    implementation("com.github.stewsters:stewsters-util:0.20")
 
 /*
   :dependencies [[org.clojure/clojure "1.10.0"]

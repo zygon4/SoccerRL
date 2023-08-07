@@ -27,7 +27,7 @@ public class Identifier implements Comparable<Identifier> {
     private int hash = -1;
 
     public Location toLocation() {
-        return new Location(coordinates[0], coordinates[1]);
+        return Location.create(coordinates[0], coordinates[1]);
     }
 
     public Identifier(int... coords) {

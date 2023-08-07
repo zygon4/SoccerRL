@@ -32,14 +32,14 @@ public class GameImplTest {
         Player player = playerStatus.getKey().getPlayer();
         Location loc = playerStatus.getValue();
 
-        Assert.assertTrue("Test bug. rerun.", game.getPlayer(new Location(0, 0)) == null);
+        Assert.assertTrue("Test bug. rerun.", game.getPlayer(Location.create(0, 0)) == null);
 
         if (loc.getX() == 0 && loc.getY() == 0) {
             Assert.fail("test bug. rerun for this scenario.");
         }
-        game.apply(PlayerAction.move(player, new Location(0, 0)));
+        game.apply(PlayerAction.move(player, Location.create(0, 0)));
 
-        PlayerGameStatus movedPlayer = game.getPlayer(new Location(0, 0));
+        PlayerGameStatus movedPlayer = game.getPlayer(Location.create(0, 0));
 
         Assert.assertTrue(movedPlayer.getPlayer().toString().equals(player.toString()));
 
@@ -63,14 +63,14 @@ public class GameImplTest {
         Player player = playerStatus.getKey().getPlayer();
         Location loc = playerStatus.getValue();
 
-        Assert.assertTrue("Test bug. rerun.", game.getPlayer(new Location(0, 0)) == null);
+        Assert.assertTrue("Test bug. rerun.", game.getPlayer(Location.create(0, 0)) == null);
 
         if (loc.getX() == 0 && loc.getY() == 0) {
             Assert.fail("test bug. rerun for this scenario.");
         }
-        game.apply(PlayerAction.move(player, new Location(0, 0)));
+        game.apply(PlayerAction.move(player, Location.create(0, 0)));
 
-        PlayerGameStatus movedPlayer = game.getPlayer(new Location(0, 0));
+        PlayerGameStatus movedPlayer = game.getPlayer(Location.create(0, 0));
 
         Assert.assertTrue(movedPlayer.getPlayer() != null);
 

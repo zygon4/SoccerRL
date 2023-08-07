@@ -203,7 +203,7 @@ public class Pitch {
      * @return
      */
     public Collection<Location> getNeighborLocations(Location location) {
-        return location.getRadius(1);
+        return location.getNeighbors(1);
     }
 
     public List<Location> getGoalLocations(Team team) {
@@ -373,10 +373,10 @@ public class Pitch {
         // the defender can be behind the passer.
         // TODO: this calculation should be made elsewhere, like a "LivePlayer" that knows
         // of the Player and in-game stats like fatigue
-        final long radius = Math.max(1L, (3 - Math.round(passer.getPower() + passer.getFinesse())));
+        final int radius = (int) Math.max(1L, (3 - Math.round(passer.getPower() + passer.getFinesse())));
 
         for (Location p : path) {
-            p.getRadius(radius).stream()
+            p.getNeighbors(radius).stream()
                     .forEach(loc -> {
                         if (!intercepted.get()) {
                             LocationItems locationItems = getLocationItems(loc);
@@ -517,21 +517,21 @@ public class Pitch {
 
         List<Location> homeTeamGoals = new ArrayList<>();
         for (int i = startingWidth; i < startingWidth + GOAL_WIDTH; i++) {
-            Location l = new Location(i, 0);
+            Location l = Location.create(i, 0);
             homeTeamGoals.add(l);
         }
         orderedGoalLocationsByTeam.put(home, homeTeamGoals);
 
         List<Location> awayTeamGoals = new ArrayList<>();
         for (int i = startingWidth; i < startingWidth + GOAL_WIDTH; i++) {
-            Location l = new Location(i, HEIGHT - 1);
+            Location l = Location.create(i, HEIGHT - 1);
             awayTeamGoals.add(l);
         }
         orderedGoalLocationsByTeam.put(away, awayTeamGoals);
 
         for (int y = 0; y < HEIGHT; y++) {
             for (int x = 0; x < WIDTH; x++) {
-                pitch[x][y] = new Location(x, y);
+                pitch[x][y] = Location.create(x, y);
 
                 LocationItems locationItems = new LocationItems();
                 itemsByLocation.put(pitch[x][y], locationItems);
