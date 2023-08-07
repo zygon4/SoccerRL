@@ -479,53 +479,16 @@ public class Pitch {
         return playerInfo;
     }
 
-    private Set<Location> getSpaced(FormationHelper formationHelper, int count,
-            int minHeight, int maxHeight) {
-        Set<Location> locations = new HashSet<>();
-
-        for (int x : formationHelper.getRandomWidths(count)) {
-            Location loc = null;
-
-            // loop to skip duplicate locations
-            do {
-                int randHeight = minHeight + rand.nextInt(maxHeight - minHeight);
-                loc = new Location(x, randHeight);
-            } while (locations.contains(loc));
-
-            locations.add(loc);
-        }
-
-        return locations;
-    }
-
     // from height of 0
     private Set<Location> setPitch(Team team, Formation formation,
             boolean reversed) {
 
-        FormationHelper helper = new FormationHelper(formation, HEIGHT, WIDTH);
-        // TODO: should be sorted or organized by position
         Iterator<Player> players = team.getPlayers().iterator();
-        List<Integer> playerCountAtZone = formation.getPlayerCountAtZone();
 
-        int zone = 0;
-        int zonePlayerCount = playerCountAtZone.get(zone);
-        int zoneMin = 0;
-        int zoneHeight = helper.getHeight(zone);
-        Set<Location> zoneLocations = getSpaced(helper, zonePlayerCount, 0, helper.getHeight(zone));
-
-        for (int y = 0; y < HEIGHT; y++) {
-
-            if (y >= zoneMin + zoneHeight) {
-                zone++;
-                zoneHeight = helper.getHeight(zone);
-                zonePlayerCount = playerCountAtZone.get(zone);
-                zoneMin = y;
-                zoneLocations.addAll(getSpaced(helper, zonePlayerCount, zoneMin, zoneMin + zoneHeight));
-            }
-        }
+        FormationHelper helper = new FormationHelper(formation, HEIGHT, WIDTH);
+        Set<Location> zoneLocations = helper.getPlayerPitchLocations(HEIGHT / 2);
 
         for (Location loc : zoneLocations) {
-
             Location trueLocation = loc;
             if (reversed) {
                 int reverse = HEIGHT - loc.getY() - 1;
@@ -581,7 +544,6 @@ public class Pitch {
         getLocationItems(randomPlayerLoc).setBall(Ball.create(0, 0));
         ballLocation = randomPlayerLoc;
 
-        // TODO: fix this - there is an off-by one
         setPitch(away, formation, true);
     }
 

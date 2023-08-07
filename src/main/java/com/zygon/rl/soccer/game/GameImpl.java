@@ -49,7 +49,7 @@ public class GameImpl implements Game {
         pitch = new Pitch(
                 createTeam("USA", Color.WHITE),
                 createTeam("JAPAN", Color.RED),
-                Formations._4_4_1_1);
+                Formations._4_2_3_1);
 
         state = State.STARTED;
 

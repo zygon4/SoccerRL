@@ -15,6 +15,7 @@ public class Formations implements Formation {
 
     public static final Formations _4_4_2 = new Formations("4-4-2", List.of(4, 4, 2));
     public static final Formations _4_4_1_1 = new Formations("4-4-1-1", List.of(4, 4, 1, 1));
+    public static final Formations _4_2_3_1 = new Formations("4-2-3-1", List.of(4, 2, 3, 1));
     public static final Formations _4_3_3 = new Formations("4-3-3", List.of(4, 3, 3));
 
     public static final Set<Formation> FORMATIONS = new LinkedHashSet<>();
