@@ -1,5 +1,6 @@
 package com.zygon.rl.soccer.game;
 
+import com.zygon.rl.soccer.core.Formation;
 import com.zygon.rl.soccer.core.Location;
 import com.zygon.rl.soccer.core.LocationItems;
 import com.zygon.rl.soccer.core.Pitch;
@@ -47,9 +48,8 @@ public class GameImpl implements Game {
         checkState(State.PRE);
 
         pitch = new Pitch(
-                createTeam("USA", Color.WHITE),
-                createTeam("JAPAN", Color.RED),
-                Formations._4_2_3_1);
+                createTeam("USA", Color.WHITE, Formations._4_2_3_1),
+                createTeam("JAPAN", Color.RED, Formations._4_4_1_1));
 
         state = State.STARTED;
 
@@ -300,10 +300,10 @@ public class GameImpl implements Game {
         return updates;
     }
 
-    private static Team createTeam(String name, Color color) {
+    private static Team createTeam(String name, Color color, Formation formation) {
         Random rand = new Random();
 
-        Team team = new Team(name, color);
+        Team team = new Team(name, color, formation);
 
         // TODO: add keeper
         for (int i = 0; i < 10; i++) {

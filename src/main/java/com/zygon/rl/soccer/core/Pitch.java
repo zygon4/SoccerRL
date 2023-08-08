@@ -152,19 +152,17 @@ public class Pitch {
     private final Map<Location, LocationItems> itemsByLocation = new HashMap<>();
     private final Team homeTeam;
     private final Team awayTeam;
-    private final Formation defaultFormation;
     private final List<String> gameLog = new ArrayList<>();
     private final Random rand = new Random();
     private Location ballLocation = null;
     private Sidebar sidebar = Sidebar.TEAMS;
     private Player sidebarPlayer = null; // optional
 
-    public Pitch(Team home, Team away, Formation defaultFormation) {
+    public Pitch(Team home, Team away) {
         this.homeTeam = home;
         this.awayTeam = away;
-        this.defaultFormation = defaultFormation;
 
-        fillPitch(this.homeTeam, this.awayTeam, this.defaultFormation);
+        fillPitch(this.homeTeam, this.awayTeam);
     }
 
     public Team getHomeTeam() {
@@ -480,12 +478,11 @@ public class Pitch {
     }
 
     // from height of 0
-    private Set<Location> setPitch(Team team, Formation formation,
-            boolean reversed) {
+    private Set<Location> setPitch(Team team, boolean reversed) {
 
         Iterator<Player> players = team.getPlayers().iterator();
 
-        FormationHelper helper = new FormationHelper(formation, HEIGHT, WIDTH);
+        FormationHelper helper = new FormationHelper(team.getFormation(), HEIGHT, WIDTH);
         Set<Location> zoneLocations = helper.getPlayerPitchLocations(HEIGHT / 2);
 
         for (Location loc : zoneLocations) {
@@ -508,7 +505,7 @@ public class Pitch {
         return zoneLocations;
     }
 
-    private void fillPitch(Team home, Team away, Formation formation) {
+    private void fillPitch(Team home, Team away) {
 
         // The goal "hitbox" is right in front of the goals. This is beause there's
         // an issue with the path finding from positive to negative grid space and
@@ -538,13 +535,13 @@ public class Pitch {
             }
         }
 
-        Set<Location> homePlayerLocations = setPitch(home, formation, false);
+        Set<Location> homePlayerLocations = setPitch(home, false);
 
         Location randomPlayerLoc = homePlayerLocations.iterator().next();
         getLocationItems(randomPlayerLoc).setBall(Ball.create(0, 0));
         ballLocation = randomPlayerLoc;
 
-        setPitch(away, formation, true);
+        setPitch(away, true);
     }
 
     private LocationItems getLocationItems(Location location) {

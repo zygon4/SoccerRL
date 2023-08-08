@@ -1,5 +1,7 @@
 package com.zygon.rl.soccer.core;
 
+import com.zygon.rl.soccer.strategy.Formations;
+
 import java.awt.Color;
 import java.util.Collection;
 import java.util.Collections;
@@ -17,10 +19,16 @@ public class Team {
     private final String name;
     private final Color color;
     private final Map<Integer, Player> players = new HashMap<>();
+    private final Formation formation;
 
-    public Team(String name, Color color) {
+    public Team(String name, Color color, Formation formation) {
         this.name = name;
         this.color = color;
+        this.formation = formation;
+    }
+
+    public Team(String name, Color color) {
+        this(name, color, Formations._4_4_2);
     }
 
     public void add(Player player) {
@@ -33,6 +41,10 @@ public class Team {
 
     public String getName() {
         return name;
+    }
+
+    public Formation getFormation() {
+        return formation;
     }
 
     public Collection<Player> getPlayers() {

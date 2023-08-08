@@ -13,7 +13,6 @@ import com.zygon.rl.soccer.core.Pitch;
 import com.zygon.rl.soccer.core.Player;
 import com.zygon.rl.soccer.core.PlayerAction;
 import com.zygon.rl.soccer.core.Team;
-import com.zygon.rl.soccer.strategy.Formations;
 import com.zygon.rl.soccer.utils.Utils;
 
 import java.awt.Color;
@@ -44,7 +43,7 @@ public class OLDGame {
     public OLDGame(Team homeTeam, Team awayTeam) {
         this.homeTeam = homeTeam;
         this.awayTeam = awayTeam;
-        this.pitch = new Pitch(this.homeTeam, this.awayTeam, Formations._4_4_2);
+        this.pitch = new Pitch(this.homeTeam, this.awayTeam);
 
         scoresByTeam.put(homeTeam, new Score(homeTeam));
         scoresByTeam.put(awayTeam, new Score(awayTeam));
