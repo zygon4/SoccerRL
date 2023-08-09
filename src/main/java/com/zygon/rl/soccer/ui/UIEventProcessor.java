@@ -8,10 +8,12 @@ import com.zygon.rl.soccer.game.Game;
 import com.zygon.rl.soccer.ui.UIEvent;
 import com.zygon.rl.soccer.utils.Pair;
 import org.hexworks.zircon.api.data.Position;
+import org.hexworks.zircon.api.uievent.KeyCode;
 import org.hexworks.zircon.api.uievent.KeyboardEvent;
 import org.hexworks.zircon.api.uievent.MouseEvent;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -50,17 +52,19 @@ public class UIEventProcessor {
 
         private final String name;
         private final Set<Target> targets;
-        private final int inputKey;
+        private final int mouseKey;
+        private final boolean multi;
         private final Set<GameActionNode> nodes;
         private final NodeFinish finish;
         private final ActionValue value;
 
         private GameActionNode(String name, Set<Target> targets,
-                int key, Set<GameActionNode> actions, NodeFinish finish,
-                ActionValue value) {
+                int mouseKey, boolean multi, Set<GameActionNode> actions,
+                NodeFinish finish, ActionValue value) {
             this.name = name;
             this.targets = targets;
-            this.inputKey = key;
+            this.mouseKey = mouseKey;
+            this.multi = multi;
 
             Set<GameActionNode> a = actions == null
                     ? new LinkedHashSet<>() : new LinkedHashSet<>(actions);
@@ -80,8 +84,8 @@ public class UIEventProcessor {
         }
 
         public static GameActionNode create(String name, Set<Target> targets,
-                int key) {
-            return new GameActionNode(name, targets, key, null, NodeFinish.CLEAR, null);
+                int mouseKey) {
+            return new GameActionNode(name, targets, mouseKey, false, null, NodeFinish.CLEAR, null);
         }
 
         public NodeFinish getFinish() {
@@ -89,7 +93,7 @@ public class UIEventProcessor {
         }
 
         public GameActionNode setFinish(NodeFinish finish) {
-            return new GameActionNode(name, targets, inputKey, nodes, finish, value);
+            return new GameActionNode(name, targets, mouseKey, multi, nodes, finish, value);
         }
 
         public String getName() {
@@ -97,7 +101,7 @@ public class UIEventProcessor {
         }
 
         public GameActionNode setName(String name) {
-            return new GameActionNode(name, targets, inputKey, nodes, finish, value);
+            return new GameActionNode(name, targets, mouseKey, multi, nodes, finish, value);
         }
 
         public Set<GameActionNode> getNodes() {
@@ -105,15 +109,29 @@ public class UIEventProcessor {
         }
 
         public GameActionNode setNodes(Set<GameActionNode> nodes) {
-            return new GameActionNode(name, targets, inputKey, nodes, finish, value);
+            return new GameActionNode(name, targets, mouseKey, multi, nodes, finish, value);
         }
 
         public int getInputKey() {
-            return inputKey;
+            return mouseKey;
         }
 
         public GameActionNode setInputKey(int inputKey) {
-            return new GameActionNode(name, targets, inputKey, nodes, finish, value);
+            return new GameActionNode(name, targets, inputKey, multi, nodes, finish, value);
+        }
+
+        /**
+         * Returns true if this action has a "multi" concept like a
+         * multi-select. This isn't being used yet!
+         *
+         * @return
+         */
+        public boolean isMulti() {
+            return multi;
+        }
+
+        public GameActionNode setIsMulti(boolean multi) {
+            return new GameActionNode(name, targets, mouseKey, multi, nodes, finish, value);
         }
 
         public Set<Target> getTargets() {
@@ -121,7 +139,7 @@ public class UIEventProcessor {
         }
 
         public GameActionNode setTargets(Set<Target> targets) {
-            return new GameActionNode(name, targets, inputKey, nodes, finish, value);
+            return new GameActionNode(name, targets, mouseKey, multi, nodes, finish, value);
         }
 
         private ActionValue getValue() {
@@ -129,7 +147,7 @@ public class UIEventProcessor {
         }
 
         private GameActionNode setValue(ActionValue value) {
-            return new GameActionNode(name, targets, inputKey, nodes, finish, value);
+            return new GameActionNode(name, targets, mouseKey, multi, nodes, finish, value);
         }
 
         /**
@@ -263,7 +281,10 @@ public class UIEventProcessor {
     private static final GameActionNode pass = GameActionNode.create("pass", Set.of(Target.PLAYER), RIGHT_MOUSE).setFinish(NodeFinish.POP);
 
     private static final GameActionNode select = GameActionNode.create("select",
-            Set.of(Target.PLAYER), LEFT_MOUSE).setNodes(Set.of(shoot, move, pass)).setFinish(NodeFinish.CLEAR);
+            Set.of(Target.PLAYER), LEFT_MOUSE)
+            .setIsMulti(true)
+            .setNodes(Set.of(shoot, move, pass))
+            .setFinish(NodeFinish.CLEAR);
 
     // TODO: all
     private static final Map<Integer, GameActionNode> actionsByMouseKey = Map.of(select.getInputKey(), select);
@@ -318,6 +339,8 @@ public class UIEventProcessor {
         }).findFirst().orElse(null);
     }
 
+    private final Set<KeyCode> pressedKey = new HashSet<>();
+
     public synchronized void poke() {
         while (!queue.isEmpty()) {
             if (queue.size() > 1) {
@@ -327,12 +350,24 @@ public class UIEventProcessor {
 
             UIEvent event = queue.remove();
 
+            System.out.println("processor) " + event);
+
             if (event.keyboardEvent() != null) {
                 KeyboardEvent keyboardEvent = event.keyboardEvent();
+
+                switch (keyboardEvent.getType()) {
+                    case KEY_PRESSED:
+                        pressedKey.add(keyboardEvent.getCode());
+                        break;
+                    case KEY_RELEASED:
+                        pressedKey.remove(keyboardEvent.getCode());
+                        break;
+                }
 
                 switch (keyboardEvent.getCode()) {
                     case ESCAPE:
                         nodes.clear();
+                        pressedKey.clear();
                         break;
                     case SPACE:
                         game.play();
@@ -368,8 +403,6 @@ public class UIEventProcessor {
                         break;
                 }
             }
-
-            System.out.println("processor) " + event);
         }
     }
 

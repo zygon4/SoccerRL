@@ -170,12 +170,17 @@ public class UserInterface {
             update();
 
             // Using queue "add" because it WILL throw exceptions if full, to find dev bugs
-            tileGrid.processKeyboardEvents(KeyboardEventType.KEY_PRESSED,
-                    Functions.fromBiConsumer((event, phase) -> {
-                        uiEventQueue.add(UIEvent.create(event));
-                        processor.poke();
-                        update();
-                    }));
+            List<KeyboardEventType> keyboardEvents = List.of(KeyboardEventType.KEY_PRESSED,
+                    KeyboardEventType.KEY_RELEASED, KeyboardEventType.KEY_TYPED);
+
+            for (KeyboardEventType keyboardEventType : keyboardEvents) {
+                tileGrid.processKeyboardEvents(keyboardEventType,
+                        Functions.fromBiConsumer((event, phase) -> {
+                            uiEventQueue.add(UIEvent.create(event));
+                            processor.poke();
+                            update();
+                        }));
+            }
 
             // Register mouse events
             List<MouseEventType> mouseEvents = List.of(MouseEventType.MOUSE_CLICKED,
@@ -190,114 +195,8 @@ public class UserInterface {
                         }));
             }
 
-//            tileGrid.processKeyboardEvents(KeyboardEventType.KEY_PRESSED,
-//                    Functions.fromBiConsumer((event, phase) -> {
-//                        try {
-////                            System.out.println(event);
-//
-//                            PlayerAction.Action action = null;
-//
-//                            switch (event.getCode()) {
-//                                case KEY_H:
-//                                    highlightPlayers();
-//                                    break;
-//                                default:
-//                            }
-//                        } catch (Throwable th) {
-//                            th.printStackTrace();
-//                            // don't throw out..
-//                        }
-//
-//                    }));
             tileGrid.processMouseEvents(MouseEventType.MOUSE_MOVED,
                     Functions.fromBiConsumer(handleMouseMoved(scoreTextArea)));
-            //            tileGrid.processMouseEvents(MouseEventType.MOUSE_CLICKED,
-            //                    Functions.fromBiConsumer((event, phase) -> {
-            //                        try {
-            ////                            System.out.println(event);
-            //
-            //                            Location location = null;
-            //                            PlayerGameStatus player = null;
-            //
-            //                            switch (event.getButton()) {
-            //                                case LEFT_MOUSE:
-            //                                    location = fromTileGridToPitch(event.getPosition());
-            //                                    player = game.getPlayer(location);
-            //
-            //                                    // TODO: highlight as an action?
-            //                                    // There is really "UI" actions and player actions
-            //                                    // how to break these up?
-            //                                    if (player != null) {
-            //                                        selectedNouns.forEach(gsi -> {
-            //                                            if (gsi.getPlayer() != null) {
-            //                                                unHighlight(gsi.getLocation());
-            //                                            }
-            //                                        });
-            //
-            //                                        highlightPlayer(location, player, true);
-            //                                        playerInfo.setText(player.toString());
-            //                                        playerInfo.setHidden(false);
-            //                                    }
-            //
-            //                                    GameStateInput gameUIInput = null;
-            //                                    if (player != null) {
-            //                                        gameUIInput = GameStateInput.selectPlayer(player.getPlayer(), location);
-            //                                    } else if (location != null) {
-            //                                        gameUIInput = GameStateInput.selectLocation(location);
-            //                                    }
-            //
-            //                                    if (actionVerb == null) {
-            //                                        selectedNouns.add(gameUIInput);
-            //
-            //                                        List<PlayerAction.Action> availableAction = getAvailableAction(selectedNouns);
-            //                                        availableAction.forEach(action -> {
-            //                                            System.out.println(action.name());
-            //                                        });
-            //
-            //                                        if (availableAction.isEmpty()) {
-            //                                            // no actions..
-            //                                        }
-            //
-            //                                    } else {
-            //                                        boolean matchingArgument = false;
-            //
-            //                                        switch (gameUIInput.getType()) {
-            //                                            case SINGLE_PLAYER_SELECT:
-            //                                                matchingArgument = actionVerb.getArgument() == PlayerAction.Argument.PLAYER;
-            //                                                break;
-            //                                            case LOCATION_SELECT:
-            //                                                matchingArgument = actionVerb.getArgument() == PlayerAction.Argument.LOCATION;
-            //                                                break;
-            //                                        }
-            //
-            //                                        if (matchingArgument) {
-            //                                            selectedNouns.add(gameUIInput);
-            //
-            //                                            // We're expecting a final noun
-            //                                            applyAction(actionVerb, selectedNouns);
-            //
-            //                                            update();
-            //
-            //                                            selectedNouns.clear();
-            //                                            actionVerb = null;
-            //                                            playerInfo.setHidden(true);
-            //                                        } else {
-            //                                            // TODO: print to screen
-            //                                            System.out.println("Expecting " + actionVerb.getArgument().name());
-            //                                        }
-            //                                    }
-            //
-            //                                    break;
-            //                                // TODO: other input options
-            //                            }
-            //
-            //                            // Maybe too early to think about but:
-            //                            // if game over, change screen to "results view"
-            //                        } catch (Throwable th) {
-            //                            th.printStackTrace();
-            //                            // don't throw out..
-            //                        }
-            //                    }));
         }
 
         // synchronized is I *think* important? blocking the pitch rendering could be slow..
