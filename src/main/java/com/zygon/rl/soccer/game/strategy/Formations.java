@@ -1,4 +1,4 @@
-package com.zygon.rl.soccer.strategy;
+package com.zygon.rl.soccer.game.strategy;
 
 import com.zygon.rl.soccer.core.Formation;
 

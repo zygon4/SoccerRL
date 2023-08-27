@@ -28,7 +28,7 @@ public class Location {
             .build();
 
     // For use with path finding
-    private static final int BOX_SIZE = 50;
+    private static final int BOX_SIZE = 100; //Math.max(PhysicalPitch.WIDTH, PhysicalPitch.HEIGHT);
     private static final BoundingBox2d MAP = new BoundingBox2d() {
         @Override
         public int getXSize() {
@@ -41,7 +41,7 @@ public class Location {
         }
     };
     // TO USE THIS IT MEANS WE NEED TO NORMALIZE ALL VALUES TO 0-49
-    private static final AStarPathFinder2d PATH_FINDER = new AStarPathFinder2d(MAP, 100);
+    private static final AStarPathFinder2d PATH_FINDER = new AStarPathFinder2d(MAP, BOX_SIZE);
 
     private final int x;
     private final int y;
@@ -54,6 +54,19 @@ public class Location {
         this.z = z;
 
         this.hash = hash;
+    }
+
+    public final Location getAngleNeighbor(double angleDegrees) {
+        double angle = Math.toRadians(angleDegrees);
+        int distance = 1;
+        double pointX = getX() + distance * Math.cos(angle);
+        double pointY = getY() + distance * Math.sin(angle);
+
+        return Location.create(Math.round((float) pointX), Math.round((float) pointY));
+    }
+
+    public final int getNeighborAngle(Location target) {
+        return (int) Math.round(Math.toDegrees(Math.atan2(target.getY() - getY(), target.getX() - getX())));
     }
 
     public double getDistance(Location o) {

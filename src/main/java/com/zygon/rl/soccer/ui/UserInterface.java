@@ -5,14 +5,12 @@
  */
 package com.zygon.rl.soccer.ui;
 
-import com.zygon.rl.soccer.core.Identifier;
 import com.zygon.rl.soccer.core.Location;
 import com.zygon.rl.soccer.core.Player;
 import com.zygon.rl.soccer.core.PlayerAction;
-import com.zygon.rl.soccer.core.PlayerGameStatus;
+import com.zygon.rl.soccer.core.pitch.Pitch;
+import com.zygon.rl.soccer.core.pitch.PlayerEntity;
 import com.zygon.rl.soccer.game.Game;
-import com.zygon.rl.soccer.ui.GameStateInput;
-import com.zygon.rl.soccer.ui.UIEvent;
 import org.hexworks.zircon.api.CP437TilesetResources;
 import org.hexworks.zircon.api.ColorThemes;
 import org.hexworks.zircon.api.Components;
@@ -34,6 +32,8 @@ import org.hexworks.zircon.api.data.Tile;
 import org.hexworks.zircon.api.graphics.BoxType;
 import org.hexworks.zircon.api.graphics.Layer;
 import org.hexworks.zircon.api.grid.TileGrid;
+import org.hexworks.zircon.api.uievent.KeyCode;
+import org.hexworks.zircon.api.uievent.KeyboardEvent;
 import org.hexworks.zircon.api.uievent.KeyboardEventType;
 import org.hexworks.zircon.api.uievent.MouseEvent;
 import org.hexworks.zircon.api.uievent.MouseEventType;
@@ -42,12 +42,11 @@ import org.hexworks.zircon.api.uievent.UIEventResponse;
 import org.hexworks.zircon.api.view.base.BaseView;
 
 import java.awt.Color;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
+import java.util.TreeSet;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
@@ -101,10 +100,7 @@ public class UserInterface {
         private static final Tile PATH_TILE = createPlayerTile('*', ANSITileColor.BRIGHT_MAGENTA);
         private static final Tile BALL_TILE = createPlayerTile('o', ANSITileColor.BRIGHT_YELLOW);
 
-        // Everything below is sus..
-        private final BlockingQueue<UIEvent> uiEventQueue = new ArrayBlockingQueue<>(1000);
         private final UIEventProcessor processor;
-
         private final TileGrid tileGrid;
         private final Game game;
 
@@ -117,7 +113,7 @@ public class UserInterface {
 
             this.tileGrid = tileGrid;
             this.game = game;
-            this.processor = new UIEventProcessor(this.game, uiEventQueue);
+            this.processor = new UIEventProcessor(this.game);
         }
 
         @Override
@@ -176,8 +172,7 @@ public class UserInterface {
             for (KeyboardEventType keyboardEventType : keyboardEvents) {
                 tileGrid.processKeyboardEvents(keyboardEventType,
                         Functions.fromBiConsumer((event, phase) -> {
-                            uiEventQueue.add(UIEvent.create(event));
-                            processor.poke();
+                            processor.add(UIEvent.create(event));
                             update();
                         }));
             }
@@ -189,14 +184,31 @@ public class UserInterface {
             for (MouseEventType mouseEvent : mouseEvents) {
                 tileGrid.processMouseEvents(mouseEvent,
                         Functions.fromBiConsumer((event, phase) -> {
-                            uiEventQueue.add(UIEvent.create(event));
-                            processor.poke();
+                            processor.add(UIEvent.create(event));
                             update();
                         }));
             }
 
             tileGrid.processMouseEvents(MouseEventType.MOUSE_MOVED,
                     Functions.fromBiConsumer(handleMouseMoved(scoreTextArea)));
+
+            Thread t = new Thread() {
+                @Override
+                public void run() {
+                    while (true) {
+                        processor.add(UIEvent.create(new KeyboardEvent(KeyboardEventType.KEY_PRESSED, "space", KeyCode.SPACE, false, false, false, false)));
+                        update();
+
+                        try {
+                            TimeUnit.MILLISECONDS.sleep(500);
+                        } catch (InterruptedException e) {
+                            // ignore
+                        }
+                    }
+                }
+            };
+            t.setDaemon(false);
+            t.start();
         }
 
         // synchronized is I *think* important? blocking the pitch rendering could be slow..
@@ -283,17 +295,21 @@ public class UserInterface {
                 pitchLayer.draw(BLANK_TILE, pos);
 
                 Set<Game.TileItem> sortedItems = items.stream()
-                        .sorted((t1, t2) -> t1.equals(Game.TileItem.BALL) ? -1 : (t2.equals(Game.TileItem.BALL) ? 1 : 0))
-                        .collect(Collectors.toSet());
+                        .sorted((t1, t2) -> t1.equals(Game.TileItem.BALL) ? 1 : (t2.equals(Game.TileItem.BALL) ? -1 : 0))
+                        .collect(Collectors.toCollection(() -> new TreeSet<>()));
 
                 for (Game.TileItem tileItems : sortedItems) {
                     switch (tileItems) {
                         case BALL:
-                            Collection<Identifier> neighbors = new Identifier(loc.getX(), loc.getY()).getNeighbors(1);
-                            for (Identifier id : neighbors) {
-                                Location l = id.toLocation();
-                                pitchLayer.draw(BALL_TILE, Position.create(l.getX(), l.getY()));
-                            }
+//                            Collection<Identifier> neighbors = new Identifier(loc.getX(), loc.getY()).getNeighbors(1);
+//                            for (Identifier id : neighbors) {
+//                                Location l = id.toLocation();
+//                                pitchLayer.draw(BALL_TILE, Position.create(l.getX(), l.getY()));
+//                            }
+                            pitchLayer.draw(BALL_TILE, pos);
+                            break;
+                        case DEFAULT:
+                            pitchLayer.draw(BLANK_TILE, pos);
                             break;
                         case GOAL:
                             pitchLayer.draw(GOAL_TILE, pos);
@@ -305,7 +321,7 @@ public class UserInterface {
                             pitchLayer.draw(PATH_TILE, pos);
                             break;
                         case PLAYER:
-                            PlayerGameStatus player = game.getPlayer(loc);
+                            PlayerEntity player = game.getPlayer(loc);
                             Tile playerTile = createPlayerTile('P', convert(player.getPlayer().getTeam().getColor()));
                             pitchLayer.draw(playerTile, pos);
                             break;
@@ -327,7 +343,7 @@ public class UserInterface {
                     .buildCharacterTile();
         }
 
-        private void highlightPlayer(Location location, PlayerGameStatus player,
+        private void highlightPlayer(Location location, PlayerEntity player,
                 boolean includePlayer) {
             if (includePlayer) {
                 setHighlight(location, ANSITileColor.YELLOW);
@@ -352,12 +368,12 @@ public class UserInterface {
         }
 
         private void highlightPlayerPath(Location location,
-                PlayerGameStatus player) {
+                PlayerEntity player) {
             highlightPlayer(location, player, false);
         }
 
         private void unHighlight(Location location) {
-            PlayerGameStatus player = game.getPlayer(location);
+            PlayerEntity player = game.getPlayer(location);
             if (player != null) {
                 setHighlight(location, convert(player.getPlayer().getTeam().getColor()));
                 if (player.getDestination() != null) {
@@ -450,7 +466,13 @@ public class UserInterface {
 
     // Need to subtract the score screen vertical
     static Location fromTileGridToPitch(Position position) {
-        return Location.create(position.getX(), position.getY() - GAME_SCREEN_HEIGHT);
+        Location loc = Location.create(position.getX(), position.getY() - GAME_SCREEN_HEIGHT);
+
+        if (loc.getX() < 0 || loc.getX() >= Pitch.WIDTH || loc.getY() < 0 || loc.getY() >= Pitch.HEIGHT) {
+            return null;
+        }
+
+        return loc;
     }
 
     private static BiConsumer<MouseEvent, UIEventPhase> handleMouseMoved(

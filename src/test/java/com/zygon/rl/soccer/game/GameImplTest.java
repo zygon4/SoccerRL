@@ -3,7 +3,7 @@ package com.zygon.rl.soccer.game;
 import com.zygon.rl.soccer.core.Location;
 import com.zygon.rl.soccer.core.Player;
 import com.zygon.rl.soccer.core.PlayerAction;
-import com.zygon.rl.soccer.core.PlayerGameStatus;
+import com.zygon.rl.soccer.core.pitch.PlayerEntity;
 import com.zygon.rl.soccer.game.Game.TileItem;
 import org.junit.Assert;
 import org.junit.Test;
@@ -19,13 +19,13 @@ public class GameImplTest {
 
     @Test
     public void testMove() {
-        Game game = new GameImpl();
+        Game game = new GameImpl(new GameConfiguration());
         game.start();
 
         Map<Location, Set<Game.TileItem>> initialPitchUpdates = game.getPitchUpdates();
 
-        Map<PlayerGameStatus, Location> players = game.getPlayers();
-        Map.Entry<PlayerGameStatus, Location> playerStatus = players.entrySet().stream()
+        Map<PlayerEntity, Location> players = game.getPlayers();
+        Map.Entry<PlayerEntity, Location> playerStatus = players.entrySet().stream()
                 .findFirst()
                 .orElseThrow();
 
@@ -39,7 +39,7 @@ public class GameImplTest {
         }
         game.apply(PlayerAction.move(player, Location.create(0, 0)));
 
-        PlayerGameStatus movedPlayer = game.getPlayer(Location.create(0, 0));
+        PlayerEntity movedPlayer = game.getPlayer(Location.create(0, 0));
 
         Assert.assertTrue(movedPlayer.getPlayer().toString().equals(player.toString()));
 
@@ -50,13 +50,13 @@ public class GameImplTest {
     @Test
     public void testPitchUpates() {
 
-        Game game = new GameImpl();
+        Game game = new GameImpl(new GameConfiguration());
         game.start();
 
         Map<Location, Set<Game.TileItem>> initialPitchUpdates = game.getPitchUpdates();
 
-        Map<PlayerGameStatus, Location> players = game.getPlayers();
-        Map.Entry<PlayerGameStatus, Location> playerStatus = players.entrySet().stream()
+        Map<PlayerEntity, Location> players = game.getPlayers();
+        Map.Entry<PlayerEntity, Location> playerStatus = players.entrySet().stream()
                 .findFirst()
                 .orElseThrow();
 
@@ -70,7 +70,7 @@ public class GameImplTest {
         }
         game.apply(PlayerAction.move(player, Location.create(0, 0)));
 
-        PlayerGameStatus movedPlayer = game.getPlayer(Location.create(0, 0));
+        PlayerEntity movedPlayer = game.getPlayer(Location.create(0, 0));
 
         Assert.assertTrue(movedPlayer.getPlayer() != null);
 

@@ -8,7 +8,6 @@ public class BallAction extends Action {
     private final Location location;
 
     private BallAction(Location location) {
-        super(null);
         this.location = location;
     }
 

@@ -6,6 +6,7 @@ import java.util.Objects;
  *
  * @author zygon
  */
+@Deprecated // For PlayerEntity
 public class PlayerGameStatus {
 
     // TODO: this class needs a lot more fun features.

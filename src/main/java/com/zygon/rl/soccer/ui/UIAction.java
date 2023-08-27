@@ -33,7 +33,6 @@ public class UIAction extends Action {
 
     private UIAction(Action action, Player player, Location source,
             Location target) {
-        super(null);
         this.action = Objects.requireNonNull(action);
         this.player = player;
         this.source = source;

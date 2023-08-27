@@ -3,8 +3,7 @@ package com.zygon.rl.soccer.core;
 import java.util.Objects;
 
 /**
- *
- * @author zygon
+ * Static player info.
  */
 public class Player {
 
@@ -15,7 +14,8 @@ public class Player {
     private final double reach;
     private final double finesse; // ? this is fuzzy, maybe act like tiebreaker?
 
-    public Player(int number, Team team, double speed, double power, double reach, double finesse) {
+    public Player(int number, Team team, double speed, double power,
+            double reach, double finesse) {
         this.number = number;
         this.team = team;
         this.speed = speed;

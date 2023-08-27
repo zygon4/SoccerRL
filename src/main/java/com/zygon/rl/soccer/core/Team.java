@@ -1,6 +1,6 @@
 package com.zygon.rl.soccer.core;
 
-import com.zygon.rl.soccer.strategy.Formations;
+import com.zygon.rl.soccer.game.strategy.Formations;
 
 import java.awt.Color;
 import java.util.Collection;

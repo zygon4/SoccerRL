@@ -6,7 +6,7 @@ package com.zygon.rl.soccer.game;
 import com.zygon.rl.soccer.core.Location;
 import com.zygon.rl.soccer.core.Player;
 import com.zygon.rl.soccer.core.PlayerAction;
-import com.zygon.rl.soccer.core.PlayerGameStatus;
+import com.zygon.rl.soccer.core.pitch.PlayerEntity;
 import com.zygon.rl.soccer.ui.UIAction;
 
 import java.util.Collection;
@@ -28,12 +28,12 @@ public interface Game {
 
     enum TileItem {
         BALL, // ball tile (ideally not on top of the player
+        DEFAULT, // grass tile
         PLAYER, // player tile
         BALL_FLIGHT, // where's the ball going
         GOAL, // A goal tile
         PLAYER_HIGHLIGHT, // hightlighting
         PLAYER_TRACK    // where's the player going
-
     }
 
     State getState();
@@ -70,9 +70,9 @@ public interface Game {
      * @param location
      * @return
      */
-    PlayerGameStatus getPlayer(Location location);
+    PlayerEntity getPlayer(Location location);
 
-    Map<PlayerGameStatus, Location> getPlayers();
+    Map<PlayerEntity, Location> getPlayers();
 
     boolean isGoal(Location location);
 

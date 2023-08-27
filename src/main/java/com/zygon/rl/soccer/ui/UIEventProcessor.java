@@ -3,9 +3,8 @@ package com.zygon.rl.soccer.ui;
 import com.zygon.rl.soccer.core.Location;
 import com.zygon.rl.soccer.core.Player;
 import com.zygon.rl.soccer.core.PlayerAction;
-import com.zygon.rl.soccer.core.PlayerGameStatus;
+import com.zygon.rl.soccer.core.pitch.PlayerEntity;
 import com.zygon.rl.soccer.game.Game;
-import com.zygon.rl.soccer.ui.UIEvent;
 import com.zygon.rl.soccer.utils.Pair;
 import org.hexworks.zircon.api.data.Position;
 import org.hexworks.zircon.api.uievent.KeyCode;
@@ -20,6 +19,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.Stack;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.stream.Collectors;
 
 import static org.hexworks.zircon.api.uievent.KeyCode.ESCAPE;
@@ -174,7 +174,7 @@ public class UIEventProcessor {
                 Location targetLocation = targetAction.getValue().getTargetLocation();
                 Player targetPlayer = targetAction.getValue().getDestinationPlayer();
 
-                PlayerGameStatus playerStatus = game.getPlayer(sourceLocation);
+                PlayerEntity playerStatus = game.getPlayer(sourceLocation);
                 boolean playerHasBall = playerStatus != null && sourceLocation.equals(game.getBall());
                 Set<Target> targets = targetAction.getTargets();
 
@@ -289,15 +289,92 @@ public class UIEventProcessor {
     // TODO: all
     private static final Map<Integer, GameActionNode> actionsByMouseKey = Map.of(select.getInputKey(), select);
 
+    private final Set<KeyCode> pressedKey = new HashSet<>();
+    private final Queue<UIEvent> queue = new ArrayBlockingQueue<>(1000);
     private final Game game;
-    private final Queue<UIEvent> queue;
 
     // Stack is the layer of inputs required to perform an action
     private final Stack<GameActionNode> nodes = new Stack<>();
 
-    public UIEventProcessor(Game game, Queue<UIEvent> queue) {
+    public UIEventProcessor(Game game) {
         this.game = game;
-        this.queue = queue;
+    }
+
+    public synchronized void add(UIEvent event) {
+        queue.add(event);
+        poke();
+    }
+
+    private void poke() {
+        while (!queue.isEmpty()) {
+
+            try {
+                if (queue.size() > 1) {
+                    // Not an error, just information..
+                    System.err.println("Processing multiple events..");
+                }
+
+                UIEvent event = queue.remove();
+
+                System.out.println("processor) " + event);
+
+                if (event.keyboardEvent() != null) {
+                    KeyboardEvent keyboardEvent = event.keyboardEvent();
+
+                    switch (keyboardEvent.getType()) {
+                        case KEY_PRESSED:
+                            pressedKey.add(keyboardEvent.getCode());
+                            break;
+                        case KEY_RELEASED:
+                            pressedKey.remove(keyboardEvent.getCode());
+                            break;
+                    }
+
+                    switch (keyboardEvent.getCode()) {
+                        case ESCAPE:
+                            nodes.clear();
+                            pressedKey.clear();
+                            break;
+                        case SPACE:
+                            game.play();
+
+                            // Continue highlighting, etc.
+                            UIAction uiAction = getUIEvent(nodes);
+                            if (uiAction != null) {
+                                game.apply(uiAction);
+                            }
+                            break;
+                    }
+
+                } else {
+                    MouseEvent mouseEvent = event.mouseEvent();
+                    switch (mouseEvent.getType()) {
+                        case MOUSE_CLICKED:
+                            Pair<PlayerAction, UIAction> action = handleEvent(mouseEvent.getButton(), mouseEvent.getPosition(), nodes);
+                            if (action != null) {
+                                if (nodes.size() >= 2) {
+                                    // something wrong..
+                                    int a = 1;
+                                }
+
+                                if (action.getLeft() != null) {
+                                    game.apply(action.getLeft());
+                                }
+
+                                if (action.getRight() != null) {
+                                    game.apply(action.getRight());
+                                }
+                            }
+                            break;
+                        default:
+                            System.out.println(mouseEvent);
+                            break;
+                    }
+                }
+            } catch (Throwable th) {
+                th.printStackTrace(System.err);
+            }
+        }
     }
 
     /**
@@ -339,73 +416,6 @@ public class UIEventProcessor {
         }).findFirst().orElse(null);
     }
 
-    private final Set<KeyCode> pressedKey = new HashSet<>();
-
-    public synchronized void poke() {
-        while (!queue.isEmpty()) {
-            if (queue.size() > 1) {
-                // Not an error, just information..
-                System.err.println("Processing multiple events..");
-            }
-
-            UIEvent event = queue.remove();
-
-            System.out.println("processor) " + event);
-
-            if (event.keyboardEvent() != null) {
-                KeyboardEvent keyboardEvent = event.keyboardEvent();
-
-                switch (keyboardEvent.getType()) {
-                    case KEY_PRESSED:
-                        pressedKey.add(keyboardEvent.getCode());
-                        break;
-                    case KEY_RELEASED:
-                        pressedKey.remove(keyboardEvent.getCode());
-                        break;
-                }
-
-                switch (keyboardEvent.getCode()) {
-                    case ESCAPE:
-                        nodes.clear();
-                        pressedKey.clear();
-                        break;
-                    case SPACE:
-                        game.play();
-
-                        // Continue highlighting, etc.
-                        UIAction uiAction = getUIEvent(nodes);
-                        if (uiAction != null) {
-                            game.apply(uiAction);
-                        }
-                        break;
-                }
-
-            } else {
-                MouseEvent mouseEvent = event.mouseEvent();
-                switch (mouseEvent.getType()) {
-                    case MOUSE_CLICKED:
-                        Pair<PlayerAction, UIAction> action = handleEvent(mouseEvent.getButton(), mouseEvent.getPosition(), nodes);
-                        if (nodes.size() >= 2) {
-                            // something wrong..
-                            int a = 1;
-                        }
-
-                        if (action.getLeft() != null) {
-                            game.apply(action.getLeft());
-                        }
-
-                        if (action.getRight() != null) {
-                            game.apply(action.getRight());
-                        }
-                        break;
-                    default:
-                        System.out.println(mouseEvent);
-                        break;
-                }
-            }
-        }
-    }
-
     private UIAction getUIEvent(List<GameActionNode> nodes) {
 
         if (nodes.size() > 1) {
@@ -441,6 +451,11 @@ public class UIEventProcessor {
             Position position, Stack<GameActionNode> nodes) {
 
         final Location location = UserInterface.fromTileGridToPitch(position);
+
+        if (location == null) {
+            return null;
+        }
+
         GameActionNode availableAction = null;
 
         if (nodes.isEmpty()) {
@@ -458,7 +473,7 @@ public class UIEventProcessor {
                 nodes.pop();
             }
 
-            PlayerGameStatus playerStatus = game.getPlayer(location);
+            PlayerEntity playerStatus = game.getPlayer(location);
             Player player = playerStatus != null ? playerStatus.getPlayer() : null;
 
             if (nodes.isEmpty()) {

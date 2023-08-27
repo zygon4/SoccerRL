@@ -5,7 +5,7 @@
  */
 package com.zygon.rl.soccer.ui;
 
-import com.zygon.rl.soccer.game.OLDGame;
+import com.zygon.rl.soccer.game.Game;
 import org.hexworks.zircon.api.CP437TilesetResources;
 import org.hexworks.zircon.api.Functions;
 import org.hexworks.zircon.api.SwingApplications;
@@ -26,9 +26,9 @@ import org.hexworks.zircon.api.uievent.KeyboardEventType;
  */
 public class Example {
 
-    private final OLDGame game;
+    private final Game game;
 
-    public Example(OLDGame game) {
+    public Example(Game game) {
         this.game = game;
     }
 
