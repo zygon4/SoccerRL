@@ -5,7 +5,6 @@ package com.zygon.rl.soccer.ui;
 
 import com.zygon.rl.soccer.core.Location;
 import com.zygon.rl.soccer.core.Player;
-import com.zygon.rl.soccer.ui.GameStateInput;
 
 /**
  *

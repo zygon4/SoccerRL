@@ -6,8 +6,6 @@
 package com.zygon.rl.soccer.ui;
 
 import com.zygon.rl.soccer.core.Location;
-import com.zygon.rl.soccer.core.Player;
-import com.zygon.rl.soccer.core.PlayerAction;
 import com.zygon.rl.soccer.core.pitch.Pitch;
 import com.zygon.rl.soccer.core.pitch.PlayerEntity;
 import com.zygon.rl.soccer.game.Game;
@@ -218,73 +216,6 @@ public class UserInterface {
             drawPitch();
         }
 
-        // TODO: move or delete
-        private void highlightPlayers() {
-            for (var entry : game.getPlayers().entrySet()) {
-                highlightPlayerPath(entry.getValue(), entry.getKey());
-            }
-        }
-
-        // TODO: move or delete
-        private List<PlayerAction.Action> getAvailableAction(
-                Set<GameStateInput> selected) {
-
-            Set<Player> collect = selected.stream()
-                    .filter(p -> p.getPlayer() != null)
-                    .map(GameStateInput::getPlayer)
-                    .collect(Collectors.toSet());
-
-            return game.getAvailablePlayerActions(collect).keySet().stream()
-                    .collect(Collectors.toList());
-        }
-
-        // TODO: move or delete
-        private void applyAction(PlayerAction.Action action,
-                Set<GameStateInput> selected) {
-            System.out.println("APPLY: " + action.name());
-
-            switch (action) {
-                case TRACK:
-                    // TODO: multi-select players and move them all..
-
-                    Player movePlayer = selected.stream()
-                            .filter(gsi -> gsi.getPlayer() != null)
-                            .findFirst().orElseThrow().getPlayer();
-                    Location moveLocation = selected.stream()
-                            .filter(gsi -> gsi.getType().equals(GameStateInput.Type.LOCATION_SELECT))
-                            .findFirst().orElseThrow().getLocation();
-
-                    game.apply(PlayerAction.track(movePlayer, moveLocation));
-                    break;
-                case PASS:
-                    Player passPlayer = selected.stream()
-                            .filter(gsi -> gsi.getPlayer() != null)
-                            .findFirst().orElseThrow().getPlayer();
-                    Location passLocation = selected.stream()
-                            .filter(gsi -> gsi.getType().equals(GameStateInput.Type.LOCATION_SELECT))
-                            .findFirst().orElseThrow().getLocation();
-
-                    game.apply(PlayerAction.pass(passPlayer, passLocation));
-                    break;
-                default:
-                    throw new UnsupportedOperationException(action.name());
-            }
-        }
-
-        // this isn't quite right for where it's being called. It should be the total "is the action and
-        // all the inputs kosker"?
-        private boolean isActionAvailable(PlayerAction.Action action,
-                Set<GameStateInput> selected) {
-            switch (action) {
-                case TRACK:
-                    return !selected.isEmpty() && selected.iterator().next().getPlayer() != null;
-                case PASS:
-                    return !selected.isEmpty() && selected.iterator().next().getPlayer() != null;
-                // todo: the rest
-            }
-            return false;
-        }
-
         private void drawPitch() {
             Map<Location, Set<Game.TileItem>> pitchUpdates = game.getPitchUpdates();
 
@@ -487,6 +418,4 @@ public class UserInterface {
             }
         };
     }
-
-//    private static
 }
