@@ -1,19 +1,14 @@
 package com.zygon.rl.soccer.game;
 
-import com.zygon.rl.soccer.core.Ball;
 import com.zygon.rl.soccer.core.Formation;
 import com.zygon.rl.soccer.core.Location;
 import com.zygon.rl.soccer.core.Player;
 import com.zygon.rl.soccer.core.PlayerAction;
 import com.zygon.rl.soccer.core.Team;
-import com.zygon.rl.soccer.core.pitch.AddPitchEntity;
 import com.zygon.rl.soccer.core.pitch.MovePitchEntity;
 import com.zygon.rl.soccer.core.pitch.Pitch;
-import com.zygon.rl.soccer.core.pitch.Pitch.PitchAction;
-import com.zygon.rl.soccer.core.pitch.PitchBall;
 import com.zygon.rl.soccer.core.pitch.PlayerEntity;
 import com.zygon.rl.soccer.core.pitch.SetPlayerConfig;
-import com.zygon.rl.soccer.game.strategy.FormationHelper;
 import com.zygon.rl.soccer.game.strategy.Formations;
 import com.zygon.rl.soccer.ui.UIAction;
 import com.zygon.rl.soccer.utils.Utils;
@@ -23,7 +18,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -31,6 +25,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -50,8 +45,32 @@ public class GameImpl implements Game {
     private State state = State.PRE;
 
     public GameImpl(GameConfiguration config) {
+
+        // The goal "hitbox" is right in front of the goals. This is beause there's
+        // an issue with the path finding from positive to negative grid space and
+        // this is just easier.
+        int startingWidth = (Pitch.WIDTH / 2) - (GOAL_WIDTH / 2);
+
+        List<Location> homeTeamGoals = new ArrayList<>();
+        for (int i = startingWidth; i < startingWidth + GOAL_WIDTH; i++) {
+            Location l = Location.create(i, 0);
+            homeTeamGoals.add(l);
+        }
+        orderedGoalLocationsByTeam.put(homeTeam, homeTeamGoals);
+
+        List<Location> awayTeamGoals = new ArrayList<>();
+        for (int i = startingWidth; i < startingWidth + GOAL_WIDTH; i++) {
+            Location l = Location.create(i, Pitch.HEIGHT - 1);
+            awayTeamGoals.add(l);
+        }
+        orderedGoalLocationsByTeam.put(awayTeam, awayTeamGoals);
+
+        ScoreTrackingSystem.fillPitch(pitch, homeTeam, awayTeam);
+
         this.systems = List.of(new PlayerTrackingSystem(config),
-                new BallTrackingSystem(config));
+                new BallTrackingSystem(config),
+                new ScoreTrackingSystem(config, homeTeam, awayTeam,
+                        getScoringTeam(pitch, homeTeam, awayTeam, orderedGoalLocationsByTeam)));
     }
 
     @Override
@@ -62,8 +81,6 @@ public class GameImpl implements Game {
     @Override
     public void start() {
         checkState(State.PRE);
-
-        fillPitch(homeTeam, awayTeam);
 
         // set goal location tiles, these never change.
         for (Location loc : orderedGoalLocationsByTeam.get(homeTeam)) {
@@ -357,71 +374,29 @@ public class GameImpl implements Game {
         return team;
     }
 
-    // from height of 0
-    private Set<Location> setPitch(Team team, boolean reversed) {
+    // kinda goofy..
+    private static Supplier<Team> getScoringTeam(Pitch pitch, Team homeTeam,
+            Team awayTeam, Map<Team, List<Location>> orderedGoalLocationsByTeam) {
 
-        Iterator<Player> players = team.getPlayers().iterator();
+        Map<Team, Team> opponent = Map.of(homeTeam, awayTeam, awayTeam, homeTeam);
+        Map<Location, Team> teamsGoal = new HashMap<>();
+        orderedGoalLocationsByTeam.get(homeTeam).forEach(homeTeamGoals -> {
+            teamsGoal.put(homeTeamGoals, homeTeam);
+        });
+        orderedGoalLocationsByTeam.get(awayTeam).forEach(awayTeamGoals -> {
+            teamsGoal.put(awayTeamGoals, awayTeam);
+        });
 
-        FormationHelper helper = new FormationHelper(team.getFormation(), Pitch.HEIGHT, Pitch.WIDTH);
-        Set<Location> zoneLocations = helper.getPlayerPitchLocations(Pitch.HEIGHT / 2);
+        return () -> {
+            Location ballLoc = pitch.getBallLocation();
 
-        for (Location loc : zoneLocations) {
-            Location trueLocation = loc;
-            if (reversed) {
-                int reverse = Pitch.HEIGHT - loc.getY() - 1;
-                trueLocation = loc.setY(reverse);
+            Team teamGoal = teamsGoal.get(ballLoc);
+            if (teamGoal != null) {
+                return opponent.get(teamGoal);
             }
 
-            Player player = null;
-            try {
-                player = players.next();
-            } catch (Throwable th) {
-                th.printStackTrace();
-            }
-
-            PitchAction action = new AddPitchEntity(trueLocation, new PlayerEntity(player));
-            if (action.canExecute(pitch)) {
-                action.execute(pitch);
-            }
-        }
-
-        return zoneLocations;
-    }
-
-    private void fillPitch(Team home, Team away) {
-
-        // The goal "hitbox" is right in front of the goals. This is beause there's
-        // an issue with the path finding from positive to negative grid space and
-        // this is just easier.
-        int startingWidth = (Pitch.WIDTH / 2) - (GOAL_WIDTH / 2);
-
-        List<Location> homeTeamGoals = new ArrayList<>();
-        for (int i = startingWidth; i < startingWidth + GOAL_WIDTH; i++) {
-            Location l = Location.create(i, 0);
-            homeTeamGoals.add(l);
-        }
-        orderedGoalLocationsByTeam.put(home, homeTeamGoals);
-
-        List<Location> awayTeamGoals = new ArrayList<>();
-        for (int i = startingWidth; i < startingWidth + GOAL_WIDTH; i++) {
-            Location l = Location.create(i, Pitch.HEIGHT - 1);
-            awayTeamGoals.add(l);
-        }
-        orderedGoalLocationsByTeam.put(away, awayTeamGoals);
-
-        setPitch(home, false);
-        setPitch(away, true);
-
-        int ballStartX = Pitch.WIDTH / 2;
-        int ballStartY = Pitch.HEIGHT / 2;
-
-        PitchAction addBall = new AddPitchEntity(Location.create(ballStartX, ballStartY),
-                new PitchBall(new Ball(0, 0, 3.0)));
-        if (addBall.canExecute(pitch)) {
-            addBall.execute(pitch);
-        } else {
-            throw new IllegalStateException();
-        }
+            return null;
+        };
     }
 
     // This is pretty trash

@@ -25,10 +25,6 @@ public class Score {
         return SOG;
     }
 
-    public Team getTeam() {
-        return team;
-    }
-
     public int getTimeOfPossession() {
         return timeOfPossession;
     }

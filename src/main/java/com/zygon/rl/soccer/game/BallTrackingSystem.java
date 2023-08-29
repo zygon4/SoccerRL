@@ -31,7 +31,7 @@ public class BallTrackingSystem extends GameSystem {
             }
 
             MovePitchEntity moveBall = new MovePitchEntity(dest, ball);
-            if (moveBall.canExecute(pitch)) {
+            if (moveBall.canExecute(pitch) && ball.getForce() > 0) {
                 moveBall.execute(pitch);
 
                 int residualForce = ball.getForce() - 1;

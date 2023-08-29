@@ -33,7 +33,7 @@ public class MovePitchEntity extends Pitch.PitchAction {
     public boolean canExecute(Pitch pitch) {
         return Pitch.validateLegalLocation(dest)
                 && (srcPlayer != null && pitch.getPlayer(dest) == null)
-                || srcBall.getForce() > 0;
+                || srcBall != null;
     }
 
     @Override
