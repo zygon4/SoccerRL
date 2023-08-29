@@ -65,8 +65,6 @@ public class GameImpl implements Game {
 
         fillPitch(homeTeam, awayTeam);
 
-        state = State.STARTED;
-
         // set goal location tiles, these never change.
         for (Location loc : orderedGoalLocationsByTeam.get(homeTeam)) {
             updates.put(loc, Set.of(TileItem.GOAL));
@@ -74,6 +72,8 @@ public class GameImpl implements Game {
         for (Location loc : orderedGoalLocationsByTeam.get(awayTeam)) {
             updates.put(loc, Set.of(TileItem.GOAL));
         }
+
+        state = State.STARTED;
     }
 
     @Override
@@ -197,6 +197,8 @@ public class GameImpl implements Game {
 
     @Override
     public Location getBall() {
+        checkState(State.STARTED);
+
         return pitch.getBallLocation();
     }
 
@@ -407,17 +409,19 @@ public class GameImpl implements Game {
         }
         orderedGoalLocationsByTeam.put(away, awayTeamGoals);
 
-        Set<Location> homePlayerLocations = setPitch(home, false);
+        setPitch(home, false);
+        setPitch(away, true);
 
-        Location randomPlayerLoc = homePlayerLocations.iterator().next();
-        PitchAction addBall = new AddPitchEntity(randomPlayerLoc, new PitchBall(new Ball(0, 0, 3.0)));
+        int ballStartX = Pitch.WIDTH / 2;
+        int ballStartY = Pitch.HEIGHT / 2;
+
+        PitchAction addBall = new AddPitchEntity(Location.create(ballStartX, ballStartY),
+                new PitchBall(new Ball(0, 0, 3.0)));
         if (addBall.canExecute(pitch)) {
             addBall.execute(pitch);
         } else {
             throw new IllegalStateException();
         }
-
-        setPitch(away, true);
     }
 
     // This is pretty trash
