@@ -44,8 +44,6 @@ public interface Game {
 
     void apply(PlayerAction action);
 
-    Location getBall();
-
     /**
      * Returns the available actions for the group of players selected. Most
      * often expected to be a single player.
@@ -74,6 +72,10 @@ public interface Game {
 
     Map<PlayerEntity, Location> getPlayers();
 
+    // Wish this wasn't here..
+    Location getBall();
+
+    // Wish this wasn't here..
     boolean isGoal(Location location);
 
     // primary means of watching the game progress
