@@ -55,6 +55,8 @@ import java.util.stream.Collectors;
 public class UserInterface {
 
     private static final int GAME_SCREEN_HEIGHT = 10;
+    private static final int PITCH_LAYER_X_OFFSET = 10;
+    private static final int PITCH_LAYER_Y_OFFSET = 15;
 
     private final Game game;
 
@@ -148,7 +150,7 @@ public class UserInterface {
             pitchLayer = Layer.newBuilder()
                     //                    .withSize(tileGrid.getSize().getWidth() - 20, 40)
                     .withSize(20 * 3, 30 * 3)
-                    .withOffset(0, 10)
+                    .withOffset(PITCH_LAYER_X_OFFSET, PITCH_LAYER_Y_OFFSET)
                     // .withFiller(createPlayerTile('@'))
                     .build();
 
@@ -349,7 +351,7 @@ public class UserInterface {
 
     // Need to subtract the score screen vertical
     static Location fromTileGridToPitch(Position position) {
-        Location loc = Location.create(position.getX(), position.getY() - GAME_SCREEN_HEIGHT);
+        Location loc = Location.create(position.getX() - PITCH_LAYER_X_OFFSET, position.getY() - PITCH_LAYER_Y_OFFSET);
 
         if (loc.getX() < 0 || loc.getX() >= Pitch.WIDTH || loc.getY() < 0 || loc.getY() >= Pitch.HEIGHT) {
             return null;
@@ -364,7 +366,7 @@ public class UserInterface {
             try {
                 int gameX = event.getPosition().getX();
                 int gameY = event.getPosition().getY();
-                scoreTextArea.setText(gameX + "/" + gameY + "\n" + gameX + "/" + (gameY - GAME_SCREEN_HEIGHT));
+                scoreTextArea.setText(gameX + "/" + gameY + "\n" + (gameX - PITCH_LAYER_X_OFFSET) + "/" + (gameY - PITCH_LAYER_Y_OFFSET));
             } catch (Throwable th) {
                 th.printStackTrace();
             }
