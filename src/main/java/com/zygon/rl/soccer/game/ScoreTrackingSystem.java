@@ -75,8 +75,8 @@ public class ScoreTrackingSystem extends GameSystem {
         }
     }
 
-    Score getScore(Team team) {
-        return scoreByTeam.get(team);
+    Map<Team, Score> getScoreByTeam() {
+        return scoreByTeam;
     }
 
     // from height of 0

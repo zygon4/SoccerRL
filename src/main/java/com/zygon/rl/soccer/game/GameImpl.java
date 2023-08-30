@@ -16,6 +16,7 @@ import com.zygon.rl.soccer.utils.Utils;
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -41,6 +42,7 @@ public class GameImpl implements Game {
     private final ConcurrentHashMap<Location, Set<TileItem>> updates = new ConcurrentHashMap<>();
 
     private final Pitch pitch = new Pitch();
+    private final ScoreTrackingSystem scoreTrackingSystem;
     private final List<GameSystem> systems;
     private State state = State.PRE;
 
@@ -67,10 +69,10 @@ public class GameImpl implements Game {
 
         ScoreTrackingSystem.fillPitch(pitch, homeTeam, awayTeam);
 
-        this.systems = List.of(new PlayerTrackingSystem(config),
-                new BallTrackingSystem(config),
-                new ScoreTrackingSystem(config, homeTeam, awayTeam,
-                        getScoringTeam(pitch, homeTeam, awayTeam, orderedGoalLocationsByTeam)));
+        this.scoreTrackingSystem = new ScoreTrackingSystem(config, homeTeam, awayTeam,
+                getScoringTeam(pitch, homeTeam, awayTeam, orderedGoalLocationsByTeam));
+
+        this.systems = List.of(new PlayerTrackingSystem(config), new BallTrackingSystem(config), scoreTrackingSystem);
     }
 
     @Override
@@ -298,6 +300,11 @@ public class GameImpl implements Game {
 
         return pitch.getPlayerLocations().stream()
                 .collect(Collectors.toMap(pitch::getPlayer, l -> l));
+    }
+
+    @Override
+    public Map<Team, Score> getScores() {
+        return Collections.unmodifiableMap(scoreTrackingSystem.getScoreByTeam());
     }
 
     @Override

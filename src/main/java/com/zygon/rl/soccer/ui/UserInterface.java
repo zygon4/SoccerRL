@@ -102,6 +102,7 @@ public class UserInterface {
         private final TileGrid tileGrid;
         private final Game game;
 
+        private TextArea debugTextArea = null;
         private TextArea scoreTextArea = null;
         private TextArea playerInfo = null;
         private Layer pitchLayer = null;
@@ -129,11 +130,15 @@ public class UserInterface {
                     .withDecorations(org.hexworks.zircon.api.ComponentDecorations.box(BoxType.DOUBLE, "Info"))
                     .build();
 
-            List<String> scores = List.of("SCORE! TODO"); ///game.getScoreText();
-            scoreTextArea = Components.textArea()
-                    .withPosition((gameScreenHeader.getSize().getWidth()) / 2, 2)
+            debugTextArea = Components.textArea()
+                    .withPosition(gameScreenHeader.getPosition().getX() + 10, 2)
                     .withPreferredSize(10, 2)
-                    .withText(scores.stream().collect(Collectors.joining("\n")))
+                    .build();
+            gameScreenHeader.addComponent(debugTextArea);
+
+            scoreTextArea = Components.textArea()
+                    .withPosition(gameScreenHeader.getSize().getWidth() / 2, 2)
+                    .withPreferredSize(10, 2)
                     .build();
 
             gameScreenHeader.addComponent(scoreTextArea);
@@ -188,7 +193,7 @@ public class UserInterface {
             }
 
             tileGrid.processMouseEvents(MouseEventType.MOUSE_MOVED,
-                    Functions.fromBiConsumer(handleMouseMoved(scoreTextArea)));
+                    Functions.fromBiConsumer(handleMouseMoved(debugTextArea)));
 
             Thread t = new Thread() {
                 @Override
@@ -211,9 +216,15 @@ public class UserInterface {
 
         // synchronized is I *think* important? blocking the pitch rendering could be slow..
         public synchronized void update() {
-
-            //scoreTextArea.setText(scores.stream().collect(Collectors.joining("\n")));
             drawPitch();
+            updateScore();
+        }
+
+        private void updateScore() {
+            String score = game.getScores().entrySet().stream()
+                    .map(e -> e.getValue().getGoals() + " - " + e.getKey().getName())
+                    .collect(Collectors.joining("\n"));
+            scoreTextArea.setText(score);
         }
 
         private void drawPitch() {
@@ -232,11 +243,6 @@ public class UserInterface {
                 for (Game.TileItem tileItems : sortedItems) {
                     switch (tileItems) {
                         case BALL:
-//                            Collection<Identifier> neighbors = new Identifier(loc.getX(), loc.getY()).getNeighbors(1);
-//                            for (Identifier id : neighbors) {
-//                                Location l = id.toLocation();
-//                                pitchLayer.draw(BALL_TILE, Position.create(l.getX(), l.getY()));
-//                            }
                             pitchLayer.draw(BALL_TILE, pos);
                             break;
                         case DEFAULT:
@@ -272,60 +278,6 @@ public class UserInterface {
                     .withForegroundColor(foreground)
                     .withCharacter(c)
                     .buildCharacterTile();
-        }
-
-        private void highlightPlayer(Location location, PlayerEntity player,
-                boolean includePlayer) {
-            if (includePlayer) {
-                setHighlight(location, ANSITileColor.YELLOW);
-            }
-            if (player.getDestination() != null) {
-                // highlight path..
-                List<Location> path = location.getPath(player.getDestination());
-                // TODO: astar search around players
-                // TODO: use diags! this is all manhattan..
-                // This may be complicated
-                // if the below code becomes common, set into util
-                if (path != null) {
-                    for (Location p : path) {
-                        if (!p.equals(location)) { // don't highlight the current location
-                            setHighlight(p, ANSITileColor.BRIGHT_BLUE);
-                        }
-                    }
-                } else {
-                    setHighlight(location, ANSITileColor.BRIGHT_MAGENTA);
-                }
-            }
-        }
-
-        private void highlightPlayerPath(Location location,
-                PlayerEntity player) {
-            highlightPlayer(location, player, false);
-        }
-
-        private void unHighlight(Location location) {
-            PlayerEntity player = game.getPlayer(location);
-            if (player != null) {
-                setHighlight(location, convert(player.getPlayer().getTeam().getColor()));
-                if (player.getDestination() != null) {
-                    // erase highlights
-                    List<Location> path = location.getPath(player.getDestination());
-                    for (Location p : path) {
-                        if (!p.equals(location)) { // don't highlight the current location
-                            setHighlight(p, ANSITileColor.WHITE);
-                        }
-                    }
-                }
-            }
-        }
-
-        private void setHighlight(Location location, TileColor foreground) {
-            Position position = fromPitchToLayer(location);
-            Tile tileAt = pitchLayer.getTileAtOrNull(position);
-            if (tileAt != null) {
-                pitchLayer.draw(tileAt.createCopy()
-                        .withForegroundColor(foreground), position);
-            }
         }
     }
 

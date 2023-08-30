@@ -6,6 +6,7 @@ package com.zygon.rl.soccer.game;
 import com.zygon.rl.soccer.core.Location;
 import com.zygon.rl.soccer.core.Player;
 import com.zygon.rl.soccer.core.PlayerAction;
+import com.zygon.rl.soccer.core.Team;
 import com.zygon.rl.soccer.core.pitch.PlayerEntity;
 import com.zygon.rl.soccer.ui.UIAction;
 
@@ -71,6 +72,8 @@ public interface Game {
     PlayerEntity getPlayer(Location location);
 
     Map<PlayerEntity, Location> getPlayers();
+
+    Map<Team, Score> getScores();
 
     // Wish this wasn't here..
     Location getBall();
