@@ -3,6 +3,7 @@
  */
 package com.zygon.rl.soccer.game;
 
+import com.zygon.rl.soccer.core.SoccerTile;
 import com.zygon.rl.soccer.core.Location;
 import com.zygon.rl.soccer.core.Player;
 import com.zygon.rl.soccer.core.PlayerAction;
@@ -27,15 +28,6 @@ public interface Game {
         POST // see results
     }
 
-    enum TileItem {
-        BALL, // ball tile (ideally not on top of the player
-        DEFAULT, // grass tile
-        PLAYER, // player tile
-        BALL_FLIGHT, // where's the ball going
-        GOAL, // A goal tile
-        PLAYER_HIGHLIGHT, // hightlighting
-        PLAYER_TRACK    // where's the player going
-    }
 
     State getState();
 
@@ -60,7 +52,7 @@ public interface Game {
      *
      * @return the changes in the pitch since the last call.
      */
-    Map<Location, Set<TileItem>> getPitchUpdates();
+    Map<Location, Set<SoccerTile>> getPitchUpdates();
 
     /**
      * Returns a player for the player at the specified location. Null, if no

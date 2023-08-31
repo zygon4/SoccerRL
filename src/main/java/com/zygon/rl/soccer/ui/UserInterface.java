@@ -6,6 +6,7 @@
 package com.zygon.rl.soccer.ui;
 
 import com.zygon.rl.soccer.core.Location;
+import com.zygon.rl.soccer.core.SoccerTile;
 import com.zygon.rl.soccer.core.pitch.Pitch;
 import com.zygon.rl.soccer.core.pitch.PlayerEntity;
 import com.zygon.rl.soccer.game.Game;
@@ -56,7 +57,7 @@ public class UserInterface {
 
     private static final int GAME_SCREEN_HEIGHT = 10;
     private static final int PITCH_LAYER_X_OFFSET = 10;
-    private static final int PITCH_LAYER_Y_OFFSET = 15;
+    private static final int PITCH_LAYER_Y_OFFSET = 20;
 
     private final Game game;
 
@@ -92,6 +93,10 @@ public class UserInterface {
     private static final class GameView extends BaseView {
 
         private static final Tile BLANK_TILE = Tile.newBuilder()
+                .withBackgroundColor(ANSITileColor.GREEN)
+                //.withForegroundColor(ANSITileColor.WHITE)
+                .buildCharacterTile();
+        private static final Tile PITCH_TILE = Tile.newBuilder()
                 .withBackgroundColor(ANSITileColor.GREEN)
                 .withForegroundColor(ANSITileColor.WHITE)
                 .withCharacter('.')
@@ -230,25 +235,25 @@ public class UserInterface {
         }
 
         private void drawPitch() {
-            Map<Location, Set<Game.TileItem>> pitchUpdates = game.getPitchUpdates();
+            Map<Location, Set<SoccerTile>> pitchUpdates = game.getPitchUpdates();
 
             pitchUpdates.forEach((loc, items) -> {
                 final Position pos = fromPitchToLayer(loc);
 
                 // TBD: is this the best way to do this?
-                pitchLayer.draw(BLANK_TILE, pos);
+                pitchLayer.draw(PITCH_TILE, pos);
 
-                Set<Game.TileItem> sortedItems = items.stream()
-                        .sorted((t1, t2) -> t1.equals(Game.TileItem.BALL) ? 1 : (t2.equals(Game.TileItem.BALL) ? -1 : 0))
+                Set<SoccerTile> sortedItems = items.stream()
+                        .sorted((t1, t2) -> t1.equals(SoccerTile.BALL) ? 1 : (t2.equals(SoccerTile.BALL) ? -1 : 0))
                         .collect(Collectors.toCollection(() -> new TreeSet<>()));
 
-                for (Game.TileItem tileItems : sortedItems) {
+                for (SoccerTile tileItems : sortedItems) {
                     switch (tileItems) {
                         case BALL:
                             pitchLayer.draw(BALL_TILE, pos);
                             break;
                         case DEFAULT:
-                            pitchLayer.draw(BLANK_TILE, pos);
+                            pitchLayer.draw(PITCH_TILE, pos);
                             break;
                         case GOAL:
                             pitchLayer.draw(GOAL_TILE, pos);

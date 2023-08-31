@@ -4,7 +4,7 @@ import com.zygon.rl.soccer.core.Location;
 import com.zygon.rl.soccer.core.Player;
 import com.zygon.rl.soccer.core.PlayerAction;
 import com.zygon.rl.soccer.core.pitch.PlayerEntity;
-import com.zygon.rl.soccer.game.Game.TileItem;
+import com.zygon.rl.soccer.core.SoccerTile;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -22,7 +22,7 @@ public class GameImplTest {
         Game game = new GameImpl(new GameConfiguration());
         game.start();
 
-        Map<Location, Set<Game.TileItem>> initialPitchUpdates = game.getPitchUpdates();
+        Map<Location, Set<SoccerTile>> initialPitchUpdates = game.getPitchUpdates();
 
         Map<PlayerEntity, Location> players = game.getPlayers();
         Map.Entry<PlayerEntity, Location> playerStatus = players.entrySet().stream()
@@ -53,7 +53,7 @@ public class GameImplTest {
         Game game = new GameImpl(new GameConfiguration());
         game.start();
 
-        Map<Location, Set<Game.TileItem>> initialPitchUpdates = game.getPitchUpdates();
+        Map<Location, Set<SoccerTile>> initialPitchUpdates = game.getPitchUpdates();
 
         Map<PlayerEntity, Location> players = game.getPlayers();
         Map.Entry<PlayerEntity, Location> playerStatus = players.entrySet().stream()
@@ -74,7 +74,7 @@ public class GameImplTest {
 
         Assert.assertTrue(movedPlayer.getPlayer() != null);
 
-        Map<Location, Set<TileItem>> pitchUpdates = game.getPitchUpdates();
+        Map<Location, Set<SoccerTile>> pitchUpdates = game.getPitchUpdates();
         // expect blank (from) and player w/ or w/o ball (to)
         Assert.assertEquals("Expected a pitch update", 2, pitchUpdates.size());
     }

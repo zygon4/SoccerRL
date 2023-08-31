@@ -1,5 +1,6 @@
 package com.zygon.rl.soccer.game;
 
+import com.zygon.rl.soccer.core.SoccerTile;
 import com.zygon.rl.soccer.core.Formation;
 import com.zygon.rl.soccer.core.Location;
 import com.zygon.rl.soccer.core.Player;
@@ -39,7 +40,7 @@ public class GameImpl implements Game {
     private final Team homeTeam = createTeam("USA", Color.WHITE, Formations._4_2_3_1);
     private final Team awayTeam = createTeam("JAPAN", Color.RED, Formations._4_4_1_1);
     private final Map<Team, List<Location>> orderedGoalLocationsByTeam = new HashMap<>(2);
-    private final ConcurrentHashMap<Location, Set<TileItem>> updates = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Location, Set<SoccerTile>> updates = new ConcurrentHashMap<>();
 
     private final Pitch pitch = new Pitch();
     private final ScoreTrackingSystem scoreTrackingSystem;
@@ -86,10 +87,10 @@ public class GameImpl implements Game {
 
         // set goal location tiles, these never change.
         for (Location loc : orderedGoalLocationsByTeam.get(homeTeam)) {
-            updates.put(loc, Set.of(TileItem.GOAL));
+            updates.put(loc, Set.of(SoccerTile.GOAL));
         }
         for (Location loc : orderedGoalLocationsByTeam.get(awayTeam)) {
-            updates.put(loc, Set.of(TileItem.GOAL));
+            updates.put(loc, Set.of(SoccerTile.GOAL));
         }
 
         state = State.STARTED;
@@ -103,17 +104,17 @@ public class GameImpl implements Game {
             case HIGHLIGHT_PLAYER:
                 // First remove all highlighting
                 for (Location key : updates.keySet()) {
-                    Set<TileItem> items = updates.get(key);
+                    Set<SoccerTile> items = updates.get(key);
                     if (items != null) {
 
-                        Set<TileItem> removed = new LinkedHashSet<>(items);
-                        removed.remove(TileItem.PLAYER_HIGHLIGHT);
+                        Set<SoccerTile> removed = new LinkedHashSet<>(items);
+                        removed.remove(SoccerTile.PLAYER_HIGHLIGHT);
                         updates.merge(key, removed, (s1, s2) -> s1.size() < s2.size() ? s1 : s2);
                     }
                 }
 
                 pitch.getNeighborLocations(pitch.getLocation(new PlayerEntity(action.getPlayer())))
-                        .forEach(l -> updates.put(l, Set.of(TileItem.PLAYER_HIGHLIGHT)));
+                        .forEach(l -> updates.put(l, Set.of(SoccerTile.PLAYER_HIGHLIGHT)));
                 break;
             case HIGHLIGHT_PATH:
                 // TODO: set path tiles in updates and update the removal
@@ -222,8 +223,16 @@ public class GameImpl implements Game {
     }
 
     @Override
-    public Map<Location, Set<TileItem>> getPitchUpdates() {
+    public Map<Location, Set<SoccerTile>> getPitchUpdates() {
         checkState(State.STARTED);
+
+        // set goal location tiles, these never change.
+        for (Location loc : orderedGoalLocationsByTeam.get(homeTeam)) {
+            updates.put(loc, Set.of(SoccerTile.GOAL));
+        }
+        for (Location loc : orderedGoalLocationsByTeam.get(awayTeam)) {
+            updates.put(loc, Set.of(SoccerTile.GOAL));
+        }
 
         // TODO: Feels awful to do a full loop..
         Location ballLocation = pitch.getBallLocation();
@@ -234,38 +243,38 @@ public class GameImpl implements Game {
                 PlayerEntity player = pitch.getPlayer(newLoc);
                 boolean hasBall = newLoc.equals(ballLocation);
 
-                Set<TileItem> oldItems = updates.get(newLoc);
+                Set<SoccerTile> oldItems = updates.get(newLoc);
 
                 boolean hasUpdate = false;
-                Set<TileItem> tileItems = new HashSet<>();
+                Set<SoccerTile> tileItems = new HashSet<>();
 
                 if (oldItems == null) {
                     hasUpdate = true;
 
                     if (hasBall) {
-                        tileItems.add(TileItem.BALL);
+                        tileItems.add(SoccerTile.BALL);
                     }
 
                     if (player != null) {
-                        tileItems.add(TileItem.PLAYER);
+                        tileItems.add(SoccerTile.PLAYER);
                     }
                 } else {
-                    if (hasBall && !oldItems.contains(TileItem.BALL)) {
+                    if (hasBall && !oldItems.contains(SoccerTile.BALL)) {
                         hasUpdate = true;
-                        tileItems.add(TileItem.BALL);
+                        tileItems.add(SoccerTile.BALL);
                     }
 
-                    if (!hasBall && oldItems.contains(TileItem.BALL)) {
+                    if (!hasBall && oldItems.contains(SoccerTile.BALL)) {
                         hasUpdate = true;
                         // TODO: remove ball from update location
                     }
 
-                    if (player != null && !oldItems.contains(TileItem.PLAYER)) {
+                    if (player != null && !oldItems.contains(SoccerTile.PLAYER)) {
                         hasUpdate = true;
-                        tileItems.add(TileItem.PLAYER);
+                        tileItems.add(SoccerTile.PLAYER);
                     }
 
-                    if (player == null && oldItems.contains(TileItem.PLAYER)) {
+                    if (player == null && oldItems.contains(SoccerTile.PLAYER)) {
                         hasUpdate = true;
                     }
                 }
@@ -342,14 +351,14 @@ public class GameImpl implements Game {
         }
     }
 
-    private static Set<TileItem> convert(boolean hasPlayer, boolean hashBall) {
-        Set<TileItem> updates = new HashSet<>();
+    private static Set<SoccerTile> convert(boolean hasPlayer, boolean hashBall) {
+        Set<SoccerTile> updates = new HashSet<>();
 
         if (hashBall) {
-            updates.add(TileItem.BALL);
+            updates.add(SoccerTile.BALL);
         }
         if (hasPlayer) {
-            updates.add(TileItem.PLAYER);
+            updates.add(SoccerTile.PLAYER);
         }
         return updates;
     }

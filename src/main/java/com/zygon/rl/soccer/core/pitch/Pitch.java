@@ -105,39 +105,6 @@ public class Pitch {
                 .findFirst().orElse(null);
     }
 
-    // from height of 0
-//    private Set<Location> setPitch(Team team, boolean reversed) {
-//
-//        Iterator<Player> players = team.getPlayers().iterator();
-//
-//        FormationHelper helper = new FormationHelper(team.getFormation(), HEIGHT, WIDTH);
-//        Set<Location> zoneLocations = helper.getPlayerPitchLocations(HEIGHT / 2);
-//
-//        for (Location loc : zoneLocations) {
-//            Location trueLocation = loc;
-//            if (reversed) {
-//                int reverse = HEIGHT - loc.getY() - 1;
-//                trueLocation = loc.setY(reverse);
-//            }
-//
-//            Player player = null;
-//            try {
-//                player = players.next();
-//            } catch (Throwable th) {
-//                th.printStackTrace();
-//            }
-//
-//            AddPitchEntity add = new AddPitchEntity(trueLocation, new PlayerObject(player));
-//            if (add.canExecute(this)) {
-//                add.execute(this);
-//            } else {
-//                throw new IllegalArgumentException();
-//            }
-//        }
-//
-//        return zoneLocations;
-//    }
-//
     // Went from void/throws to boolean
     static boolean validateLegalLocation(Location location) {
         if (location.getX() < 0 || location.getX() >= WIDTH) {
