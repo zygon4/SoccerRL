@@ -43,6 +43,10 @@ public class UIAction extends Action {
         return new UIAction(Action.HIGHLIGHT_PLAYER, player, null, null);
     }
 
+    public static UIAction unHighlightPlayer(Player player) {
+        return new UIAction(Action.UNHIGHLIGHT_PLAYER, player, null, null);
+    }
+
     public static UIAction highlightPath(Location start, Location target) {
         return new UIAction(Action.HIGHLIGHT_PATH, null, start, target);
     }

@@ -30,7 +30,7 @@ public class ApplyBallPressure extends Pitch.PitchAction {
             throw new IllegalStateException(getDisplayString());
         }
         ball.applyForce(force, angle);
-        pitch.getPitchEntites().save(ball, pitch.getBallLocation());
+        pitch.save(ball, pitch.getBallLocation());
     }
 
     @Override

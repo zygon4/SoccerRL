@@ -1,11 +1,12 @@
 package com.zygon.rl.soccer.game;
 
-import com.zygon.rl.soccer.core.SoccerTile;
 import com.zygon.rl.soccer.core.Formation;
 import com.zygon.rl.soccer.core.Location;
 import com.zygon.rl.soccer.core.Player;
 import com.zygon.rl.soccer.core.PlayerAction;
+import com.zygon.rl.soccer.core.SoccerTile;
 import com.zygon.rl.soccer.core.Team;
+import com.zygon.rl.soccer.core.pitch.Layout;
 import com.zygon.rl.soccer.core.pitch.MovePitchEntity;
 import com.zygon.rl.soccer.core.pitch.Pitch;
 import com.zygon.rl.soccer.core.pitch.PlayerEntity;
@@ -35,38 +36,30 @@ import java.util.stream.Collectors;
  */
 public class GameImpl implements Game {
 
-    private static final int GOAL_WIDTH = 5 * Pitch.PITCH_SCALE;
-
     private final Team homeTeam = createTeam("USA", Color.WHITE, Formations._4_2_3_1);
     private final Team awayTeam = createTeam("JAPAN", Color.RED, Formations._4_4_1_1);
     private final Map<Team, List<Location>> orderedGoalLocationsByTeam = new HashMap<>(2);
     private final ConcurrentHashMap<Location, Set<SoccerTile>> updates = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Location, Location> uiEffectslocations = new ConcurrentHashMap<>();
 
     private final Pitch pitch = new Pitch();
+    private final Layout layout;
     private final ScoreTrackingSystem scoreTrackingSystem;
     private final List<GameSystem> systems;
     private State state = State.PRE;
 
     public GameImpl(GameConfiguration config) {
 
-        // The goal "hitbox" is right in front of the goals. This is beause there's
-        // an issue with the path finding from positive to negative grid space and
-        // this is just easier.
-        int startingWidth = (Pitch.WIDTH / 2) - (GOAL_WIDTH / 2);
+        this.layout = Layout.constructPitch(
+                Pitch.FIELD_WIDTH, Pitch.FIELD_HEIGHT,
+                Pitch.PITCH_WIDTH, Pitch.PITCH_HEIGHT,
+                Pitch.PITCH_FIELD_WIDTH_OFFSET, Pitch.PITCH_FIELD_HEIGHT_OFFSET);
 
-        List<Location> homeTeamGoals = new ArrayList<>();
-        for (int i = startingWidth; i < startingWidth + GOAL_WIDTH; i++) {
-            Location l = Location.create(i, 0);
-            homeTeamGoals.add(l);
-        }
-        orderedGoalLocationsByTeam.put(homeTeam, homeTeamGoals);
+        orderedGoalLocationsByTeam.put(homeTeam, new ArrayList<>());
+        orderedGoalLocationsByTeam.put(awayTeam, new ArrayList<>());
 
-        List<Location> awayTeamGoals = new ArrayList<>();
-        for (int i = startingWidth; i < startingWidth + GOAL_WIDTH; i++) {
-            Location l = Location.create(i, Pitch.HEIGHT - 1);
-            awayTeamGoals.add(l);
-        }
-        orderedGoalLocationsByTeam.put(awayTeam, awayTeamGoals);
+        orderedGoalLocationsByTeam.get(homeTeam).addAll(this.layout.getHalfAGoals());
+        orderedGoalLocationsByTeam.get(awayTeam).addAll(this.layout.getHalfBGoals());
 
         ScoreTrackingSystem.fillPitch(pitch, homeTeam, awayTeam);
 
@@ -85,14 +78,14 @@ public class GameImpl implements Game {
     public void start() {
         checkState(State.PRE);
 
-        // set goal location tiles, these never change.
-        for (Location loc : orderedGoalLocationsByTeam.get(homeTeam)) {
-            updates.put(loc, Set.of(SoccerTile.GOAL));
+        for (int y = 0; y < Pitch.FIELD_HEIGHT; y++) {
+            for (int x = 0; x < Pitch.FIELD_WIDTH; x++) {
+                Location newLoc = Location.create(x, y);
+                SoccerTile defaultTile = this.layout.getTile(newLoc);
+                Set<SoccerTile> tiles = updates.computeIfAbsent(newLoc, l -> new LinkedHashSet<>());
+                tiles.add(defaultTile);
+            }
         }
-        for (Location loc : orderedGoalLocationsByTeam.get(awayTeam)) {
-            updates.put(loc, Set.of(SoccerTile.GOAL));
-        }
-
         state = State.STARTED;
     }
 
@@ -102,19 +95,21 @@ public class GameImpl implements Game {
 
         switch (action.getAction()) {
             case HIGHLIGHT_PLAYER:
-                // First remove all highlighting
-                for (Location key : updates.keySet()) {
-                    Set<SoccerTile> items = updates.get(key);
-                    if (items != null) {
-
-                        Set<SoccerTile> removed = new LinkedHashSet<>(items);
-                        removed.remove(SoccerTile.PLAYER_HIGHLIGHT);
-                        updates.merge(key, removed, (s1, s2) -> s1.size() < s2.size() ? s1 : s2);
+                pitch.getPlayerLocations().forEach(l -> {
+                    PlayerEntity player = pitch.getPlayer(l);
+                    if (player.isHighlighted()) {
+                        apply(UIAction.unHighlightPlayer(player.getPlayer()));
                     }
+                });
+
+                // This get-location-get-player is odd
+                Location highLocation = pitch.getLocation(new PlayerEntity(action.getPlayer()));
+                PlayerEntity highPlayer = pitch.getPlayer(highLocation);
+                if (!highPlayer.isHighlighted()) {
+                    SetPlayerConfig playerConfig = new SetPlayerConfig(highPlayer, true);
+                    playerConfig.execute(pitch);
                 }
 
-                pitch.getNeighborLocations(pitch.getLocation(new PlayerEntity(action.getPlayer())))
-                        .forEach(l -> updates.put(l, Set.of(SoccerTile.PLAYER_HIGHLIGHT)));
                 break;
             case HIGHLIGHT_PATH:
                 // TODO: set path tiles in updates and update the removal
@@ -123,15 +118,15 @@ public class GameImpl implements Game {
 //                action.getSource().getPath(action.getTarget())
 //                        .forEach(l -> updates.put(l, Set.of(TileItem.PLAYER_TRACK)));
                 break;
-//            case UNHIGHLIGHT_PLAYER:
-//                pitch.getLocation(action.getPlayer()).getRadius(1)
-//                        .forEach(l -> {
-//                            Set<TileItem> items = updates.get(l);
-//                            if (items != null) {
-//                                items.remove(TileItem.PLAYER_HIGHLIGHT);
-//                            }
-//                        });
-//                break;
+            case UNHIGHLIGHT_PLAYER:
+                // This get-location-get-player is odd
+                Location unHighLocation = pitch.getLocation(new PlayerEntity(action.getPlayer()));
+                PlayerEntity unHighPlayer = pitch.getPlayer(unHighLocation);
+                if (unHighPlayer.isHighlighted()) {
+                    SetPlayerConfig playerConfig = new SetPlayerConfig(unHighPlayer, false);
+                    playerConfig.execute(pitch);
+                }
+                break;
         }
     }
 
@@ -147,9 +142,14 @@ public class GameImpl implements Game {
                 }
                 break;
             case TRACK:
-                SetPlayerConfig track = new SetPlayerConfig(new PlayerEntity(action.getPlayer()), action.getLocation());
-                if (track.canExecute(pitch)) {
-                    track.execute(pitch);
+                // This is a little strange, too much indirection due to outer wrapping "PlayerEntity"
+                Location playerLoc = pitch.getLocation(new PlayerEntity(action.getPlayer()));
+                PlayerEntity player = pitch.getPlayer(playerLoc);
+                if (!player.hasDestination() || !player.getDestination().equals(action.getLocation())) {
+                    SetPlayerConfig track = new SetPlayerConfig(player, action.getLocation());
+                    if (track.canExecute(pitch)) {
+                        track.execute(pitch);
+                    }
                 }
                 break;
             case PASS:
@@ -226,71 +226,44 @@ public class GameImpl implements Game {
     public Map<Location, Set<SoccerTile>> getPitchUpdates() {
         checkState(State.STARTED);
 
-        // set goal location tiles, these never change.
-        for (Location loc : orderedGoalLocationsByTeam.get(homeTeam)) {
-            updates.put(loc, Set.of(SoccerTile.GOAL));
-        }
-        for (Location loc : orderedGoalLocationsByTeam.get(awayTeam)) {
-            updates.put(loc, Set.of(SoccerTile.GOAL));
-        }
-
-        // TODO: Feels awful to do a full loop..
         Location ballLocation = pitch.getBallLocation();
-        for (int y = 0; y < Pitch.HEIGHT; y++) {
-            for (int x = 0; x < Pitch.WIDTH; x++) {
-                Location newLoc = Location.create(x, y);
 
-                PlayerEntity player = pitch.getPlayer(newLoc);
-                boolean hasBall = newLoc.equals(ballLocation);
+        Set<Location> locationChanges = new LinkedHashSet<>();
+        locationChanges.addAll(pitch.getLocationChanges(true));
+        locationChanges.addAll(uiEffectslocations.keySet());
+        uiEffectslocations.clear();
 
-                Set<SoccerTile> oldItems = updates.get(newLoc);
+        try {
+            for (Location locChange : locationChanges) {
+                PlayerEntity player = pitch.getPlayer(locChange);
+                boolean hasBall = locChange.equals(ballLocation);
+                Set<SoccerTile> tileItems = updates.computeIfAbsent(locChange,
+                        l -> new LinkedHashSet<>());
+                tileItems.addAll(convert(player != null, hasBall));
 
-                boolean hasUpdate = false;
-                Set<SoccerTile> tileItems = new HashSet<>();
-
-                if (oldItems == null) {
-                    hasUpdate = true;
-
-                    if (hasBall) {
-                        tileItems.add(SoccerTile.BALL);
-                    }
-
-                    if (player != null) {
-                        tileItems.add(SoccerTile.PLAYER);
-                    }
-                } else {
-                    if (hasBall && !oldItems.contains(SoccerTile.BALL)) {
-                        hasUpdate = true;
-                        tileItems.add(SoccerTile.BALL);
-                    }
-
-                    if (!hasBall && oldItems.contains(SoccerTile.BALL)) {
-                        hasUpdate = true;
-                        // TODO: remove ball from update location
-                    }
-
-                    if (player != null && !oldItems.contains(SoccerTile.PLAYER)) {
-                        hasUpdate = true;
-                        tileItems.add(SoccerTile.PLAYER);
-                    }
-
-                    if (player == null && oldItems.contains(SoccerTile.PLAYER)) {
-                        hasUpdate = true;
+                if (player != null) {
+                    if (player.isHighlighted()) {
+                        uiEffectslocations.put(locChange, locChange);
+                        pitch.getNeighborLocations(locChange)
+                                .forEach(loc -> {
+                                    Set<SoccerTile> tiles = updates.computeIfAbsent(loc, l -> new LinkedHashSet<>());
+                                    tiles.add(SoccerTile.PLAYER_HIGHLIGHT);
+                                    // Note the places where effects happen to clear them for the next pass
+                                    uiEffectslocations.put(loc, loc);
+                                });
                     }
                 }
-
-                // an empty update means those items are now gone
-                if (hasUpdate) {
-                    updates.put(newLoc, tileItems);
-                } else {
-                    if (convert(true, hasBall).equals(oldItems)) {
-                        updates.remove(newLoc);
-                    }
+                if (tileItems.isEmpty()) {
+                    tileItems.add(layout.getTile(locChange));
                 }
             }
+        } catch (Throwable th) {
+            th.printStackTrace();
         }
 
-        return updates;
+        Map<Location, Set<SoccerTile>> ups = new HashMap<>(updates);
+        updates.clear();
+        return ups;
     }
 
     @Override
@@ -334,15 +307,6 @@ public class GameImpl implements Game {
         for (GameSystem system : systems) {
             system.accept(this, pitch);
         }
-
-        //
-        // TODO: Move the ball, update stats, etc
-//        pitch.getObjectiveActions().forEach(asyncAction -> {
-//            apply((PlayerAction) asyncAction);
-//        });
-        // For both teams for now, let them play. Human can change directions.
-//        runPassDrillStep(homeTeam, rand);
-//        runPassDrillStep(awayTeam, rand);
     }
 
     private void checkState(State required) {
@@ -352,13 +316,12 @@ public class GameImpl implements Game {
     }
 
     private static Set<SoccerTile> convert(boolean hasPlayer, boolean hashBall) {
-        Set<SoccerTile> updates = new HashSet<>();
-
-        if (hashBall) {
-            updates.add(SoccerTile.BALL);
-        }
+        Set<SoccerTile> updates = new LinkedHashSet<>();
         if (hasPlayer) {
             updates.add(SoccerTile.PLAYER);
+        }
+        if (hashBall) {
+            updates.add(SoccerTile.BALL);
         }
         return updates;
     }
@@ -427,47 +390,4 @@ public class GameImpl implements Game {
 
         return Utils.round(val);
     }
-
-    // TODO: this has become the crude AI
-    // TODO: convert to GameSystem
-//    private void runPassDrillStep(Team team, Random rand) {
-//
-//        List<Player> players = new ArrayList<>(team.getPlayers());
-//        Collections.shuffle(players, rand);
-//
-//        Player player = players.get(0);
-//
-//        Map<PlayerAction.Action, PlayerAction.Argument> actions = getAvailablePlayerActions(Set.of(player));
-//        PlayerAction.Action actionKey = actions.keySet().iterator().next();
-//        PlayerAction.Argument actionArg = actions.get(actionKey);
-//
-//        Map<Integer, PlayerAction> rankedActions = new TreeMap<>();
-//
-//        for (var action : actions.entrySet()) {
-//            switch (action.getKey()) {
-//                case TRACK -> {
-//                    if (!NEWPitch.getLocation(new PlayerEntity(player)).equals(NEWPitch.getBallLocation())) {
-//                        rankedActions.put(1, PlayerAction.track(player, pitch.getBallLocation()));
-//                    } else {
-//                        rankedActions.put(2, PlayerAction.track(player, pitch.getGoalLocations(pitch.getOpponent(team)).get(0)));
-//                    }
-//                }
-//                case PASS -> // This is bad..
-//                    rankedActions.put(3, PlayerAction.pass(player, pitch.getRandomLocation()));
-//                case SHOOT -> {
-//                    if (orderedGoalLocationsByTeam.get(pitch.getOpponent(team)).get(0).getDistance(pitch.getLocation(player)) <= 10) {
-//                        List<Location> goalLocations = new ArrayList<>(pitch.getGoalLocations(pitch.getOpponent(team)));
-//                        Collections.shuffle(goalLocations, rand);
-//                        rankedActions.put(1, PlayerAction.shoot(player, goalLocations.get(0)));
-//                    } else {
-//                        rankedActions.put(2, PlayerAction.track(player, pitch.getGoalLocations(pitch.getOpponent(team)).get(0)));
-//                    }
-//                }
-//            }
-//        }
-//
-//        Integer key = rankedActions.keySet().iterator().next();
-//        PlayerAction playerAction = rankedActions.get(key);
-//        apply(playerAction);
-//    }
 }

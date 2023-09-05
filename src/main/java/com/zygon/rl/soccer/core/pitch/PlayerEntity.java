@@ -4,13 +4,13 @@ import com.zygon.rl.soccer.core.Location;
 import com.zygon.rl.soccer.core.Player;
 
 /**
- *
- * @author zygon
+ * TODO: make immutable or at least more safe.
  */
 public class PlayerEntity extends PitchEntity {
 
     private final Player player;
     private Location destination;
+    private boolean highlighted;
 
     public PlayerEntity(Player player) {
         // Using toString() is "okay" here
@@ -30,8 +30,15 @@ public class PlayerEntity extends PitchEntity {
         return getDestination() != null;
     }
 
-    // TODO: make immutable or at least more safe
     void setDestination(Location destination) {
         this.destination = destination;
+    }
+
+    public boolean isHighlighted() {
+        return highlighted;
+    }
+
+    void setHighlighted(boolean highlighted) {
+        this.highlighted = highlighted;
     }
 }

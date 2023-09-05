@@ -25,7 +25,7 @@ public class AddPitchEntity extends Pitch.PitchAction {
     @Override
     public void doExecute(Pitch pitch) {
         if (canExecute(pitch)) {
-            pitch.getPitchEntites().save(pitchEntity, location);
+            pitch.save(pitchEntity, location);
         }
     }
 

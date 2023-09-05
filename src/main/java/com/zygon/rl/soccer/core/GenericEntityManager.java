@@ -90,16 +90,6 @@ public class GenericEntityManager<T extends Identifable> {
                 .collect(Collectors.toList()) : List.of();
     }
 
-    public void add(T entity, Location location) {
-
-        List<T> entities = entitiesByLocation.get(Objects.requireNonNull(location));
-        if (entities == null) {
-            entities = new ArrayList<>();
-        }
-        entities.add(entity);
-        entitiesByLocation.put(location, entities);
-    }
-
     // Will replace the entity at the given location by checking the id value
     public void save(T entity, Location location) {
 

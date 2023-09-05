@@ -6,9 +6,9 @@ import com.zygon.rl.soccer.core.Location;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -36,20 +36,40 @@ public class Pitch {
     }
 
     public static final int PITCH_SCALE = 2;
-    public static final int HEIGHT = 30 * PITCH_SCALE;
-    public static final int WIDTH = 20 * PITCH_SCALE;
+
+    // total field
+    public static final int FIELD_HEIGHT = 35 * PITCH_SCALE;
+    public static final int FIELD_WIDTH = 25 * PITCH_SCALE;
+
+    // game field
+    public static final int PITCH_HEIGHT = 30 * PITCH_SCALE;
+    public static final int PITCH_WIDTH = 20 * PITCH_SCALE;
+
+    public static final int PITCH_FIELD_HEIGHT_OFFSET = 5;
+    public static final int PITCH_FIELD_WIDTH_OFFSET = 5;
 
     private final GenericEntityManager<PitchEntity> pitchEntites = new GenericEntityManager<>();
 
-    private final List<String> log = new ArrayList<>();
+    private final List<Location> changes = new ArrayList<>();
 
-    public List<String> getLog() {
-        return Collections.unmodifiableList(log);
+    /**
+     * Returns all the locations that have had a change since the last call with
+     * the reset flag set to true.
+     *
+     * @param reset if true, will return the current set of entries and then
+     * clear the log.
+     * @return
+     */
+    public List<Location> getLocationChanges(boolean reset) {
+        List<Location> imChanges = new ArrayList<>(changes);
+        if (reset) {
+            changes.clear();
+        }
+        return imChanges;
     }
 
     /**
-     * Returns the nearest neighbors. HOWEVER, this only returns the n/s/e/w, no
-     * diagonals. TODO: add diagonals.
+     * Returns the nearest neighbors.
      *
      * @param location
      * @return
@@ -58,10 +78,23 @@ public class Pitch {
         return location.getNeighbors(1);
     }
 
-    GenericEntityManager<PitchEntity> getPitchEntites() {
-        return pitchEntites;
+    /////////// ECM methods /////////////
+    public List<PitchEntity> get(Location location,
+            Predicate<PitchEntity> filter) {
+        return getPitchEntites().get(location, filter);
     }
 
+    void delete(PitchEntity id, Location location) {
+        getPitchEntites().delete(id, location);
+        changes.add(location);
+    }
+
+    void save(PitchEntity entity, Location location) {
+        getPitchEntites().save(entity, location);
+        changes.add(location);
+    }
+
+    /////////// ECM methods /////////////
     public boolean hasBall(PlayerEntity player) {
         return getBallLocation().equals(getLocation(player));
     }
@@ -105,13 +138,17 @@ public class Pitch {
                 .findFirst().orElse(null);
     }
 
+    private GenericEntityManager<PitchEntity> getPitchEntites() {
+        return pitchEntites;
+    }
+
     // Went from void/throws to boolean
     static boolean validateLegalLocation(Location location) {
-        if (location.getX() < 0 || location.getX() >= WIDTH) {
+        if (location.getX() < 0 || location.getX() >= FIELD_WIDTH) {
             return false;
         }
 
-        if (location.getY() < 0 || location.getY() >= HEIGHT) {
+        if (location.getY() < 0 || location.getY() >= FIELD_HEIGHT) {
             return false;
         }
 

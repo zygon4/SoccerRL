@@ -57,8 +57,8 @@ public class ScoreTrackingSystem extends GameSystem {
         resetPitch(pitch, home, false);
         resetPitch(pitch, away, true);
 
-        int ballStartX = Pitch.WIDTH / 2;
-        int ballStartY = Pitch.HEIGHT / 2;
+        int ballStartX = Pitch.PITCH_FIELD_WIDTH_OFFSET + Pitch.PITCH_WIDTH / 2;
+        int ballStartY = Pitch.PITCH_FIELD_HEIGHT_OFFSET + Pitch.PITCH_HEIGHT / 2;
         Location loc = Location.create(ballStartX, ballStartY);
         PitchBall ball = new PitchBall(new Ball(0, 0, 3.0));
 
@@ -84,14 +84,18 @@ public class ScoreTrackingSystem extends GameSystem {
 
         Iterator<Player> players = team.getPlayers().iterator();
 
-        FormationHelper helper = new FormationHelper(team.getFormation(), Pitch.HEIGHT, Pitch.WIDTH);
-        Set<Location> zoneLocations = helper.getPlayerPitchLocations(Pitch.HEIGHT / 2);
+        FormationHelper helper = new FormationHelper(team.getFormation(), Pitch.PITCH_HEIGHT, Pitch.PITCH_WIDTH);
+        Set<Location> zoneLocations = helper.getPlayerPitchLocations(Pitch.PITCH_HEIGHT / 2);
 
         for (Location loc : zoneLocations) {
-            Location trueLocation = loc;
+
+            Location trueLocation = Location.create(
+                    loc.getX() + Pitch.PITCH_FIELD_WIDTH_OFFSET,
+                    loc.getY() + Pitch.PITCH_FIELD_HEIGHT_OFFSET);
+
             if (reversed) {
-                int reverse = Pitch.HEIGHT - loc.getY() - 1;
-                trueLocation = loc.setY(reverse);
+                int reverse = Pitch.PITCH_FIELD_HEIGHT_OFFSET + Pitch.PITCH_HEIGHT - loc.getY() - 1;
+                trueLocation = trueLocation.setY(reverse);
             }
 
             Player player = null;

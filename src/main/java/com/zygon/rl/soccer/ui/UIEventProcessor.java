@@ -419,7 +419,6 @@ public class UIEventProcessor {
     private UIAction getUIEvent(List<GameActionNode> nodes) {
 
         if (nodes.size() > 1) {
-
             // This code block is being re-used, should refactor.
             GameActionNode source = nodes.get(0);
             Location sourceLocation = source.getValue().getSourceLocation();

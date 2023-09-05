@@ -41,10 +41,10 @@ import org.hexworks.zircon.api.uievent.UIEventResponse;
 import org.hexworks.zircon.api.view.base.BaseView;
 
 import java.awt.Color;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -56,7 +56,6 @@ import java.util.stream.Collectors;
 public class UserInterface {
 
     private static final int GAME_SCREEN_HEIGHT = 10;
-    private static final int PITCH_LAYER_X_OFFSET = 10;
     private static final int PITCH_LAYER_Y_OFFSET = 20;
 
     private final Game game;
@@ -92,9 +91,9 @@ public class UserInterface {
      */
     private static final class GameView extends BaseView {
 
-        private static final Tile BLANK_TILE = Tile.newBuilder()
+        private static final Tile GRASS_TILE = Tile.newBuilder()
                 .withBackgroundColor(ANSITileColor.GREEN)
-                //.withForegroundColor(ANSITileColor.WHITE)
+                .withForegroundColor(ANSITileColor.WHITE)
                 .buildCharacterTile();
         private static final Tile PITCH_TILE = Tile.newBuilder()
                 .withBackgroundColor(ANSITileColor.GREEN)
@@ -104,6 +103,7 @@ public class UserInterface {
         private static final Tile GOAL_TILE = createPlayerTile('X', ANSITileColor.BRIGHT_GREEN);
         private static final Tile PATH_TILE = createPlayerTile('*', ANSITileColor.BRIGHT_MAGENTA);
         private static final Tile BALL_TILE = createPlayerTile('o', ANSITileColor.BRIGHT_YELLOW);
+        private static final Tile LINE_TILE = createPlayerTile('+', ANSITileColor.BRIGHT_WHITE);
 
         private final UIEventProcessor processor;
         private final TileGrid tileGrid;
@@ -144,7 +144,7 @@ public class UserInterface {
             gameScreenHeader.addComponent(debugTextArea);
 
             scoreTextArea = Components.textArea()
-                    .withPosition(gameScreenHeader.getSize().getWidth() / 2, 2)
+                    .withPosition(debugTextArea.getPosition().getX() + debugTextArea.getWidth(), 2)
                     .withPreferredSize(10, 2)
                     .build();
 
@@ -153,10 +153,8 @@ public class UserInterface {
 
             // Add the pitch
             pitchLayer = Layer.newBuilder()
-                    //                    .withSize(tileGrid.getSize().getWidth() - 20, 40)
-                    .withSize(20 * 3, 30 * 3)
-                    .withOffset(PITCH_LAYER_X_OFFSET, PITCH_LAYER_Y_OFFSET)
-                    // .withFiller(createPlayerTile('@'))
+                    .withSize(Pitch.FIELD_WIDTH, Pitch.FIELD_HEIGHT)
+                    .withOffset(gameScreenHeader.getPosition().withRelativeY(gameScreenHeader.getHeight()))
                     .build();
 
             getScreen().addLayer(pitchLayer);
@@ -206,7 +204,9 @@ public class UserInterface {
                 @Override
                 public void run() {
                     while (true) {
-                        processor.add(UIEvent.create(new KeyboardEvent(KeyboardEventType.KEY_PRESSED, "space", KeyCode.SPACE, false, false, false, false)));
+                        processor.add(UIEvent.create(new KeyboardEvent(
+                                KeyboardEventType.KEY_PRESSED, "space", KeyCode.SPACE,
+                                false, false, false, false)));
                         update();
 
                         try {
@@ -240,23 +240,26 @@ public class UserInterface {
             pitchUpdates.forEach((loc, items) -> {
                 final Position pos = fromPitchToLayer(loc);
 
-                // TBD: is this the best way to do this?
-                pitchLayer.draw(PITCH_TILE, pos);
-
                 Set<SoccerTile> sortedItems = items.stream()
                         .sorted((t1, t2) -> t1.equals(SoccerTile.BALL) ? 1 : (t2.equals(SoccerTile.BALL) ? -1 : 0))
-                        .collect(Collectors.toCollection(() -> new TreeSet<>()));
+                        .collect(Collectors.toCollection(() -> new LinkedHashSet<>()));
 
-                for (SoccerTile tileItems : sortedItems) {
-                    switch (tileItems) {
+                for (SoccerTile tileItem : sortedItems) {
+                    switch (tileItem) {
                         case BALL:
                             pitchLayer.draw(BALL_TILE, pos);
                             break;
-                        case DEFAULT:
-                            pitchLayer.draw(PITCH_TILE, pos);
+                        case GRASS:
+                            pitchLayer.draw(GRASS_TILE, pos);
                             break;
                         case GOAL:
                             pitchLayer.draw(GOAL_TILE, pos);
+                            break;
+                        case LINE:
+                            pitchLayer.draw(LINE_TILE, pos);
+                            break;
+                        case PITCH:
+                            pitchLayer.draw(PITCH_TILE, pos);
                             break;
                         case PLAYER_HIGHLIGHT:
                             pitchLayer.draw(PATH_TILE, pos);
@@ -268,6 +271,9 @@ public class UserInterface {
                             PlayerEntity player = game.getPlayer(loc);
                             Tile playerTile = createPlayerTile('P', convert(player.getPlayer().getTeam().getColor()));
                             pitchLayer.draw(playerTile, pos);
+                            break;
+                        default:
+                            System.err.println("Unknown tile " + tileItem.name());
                             break;
                     }
                 }
@@ -338,7 +344,7 @@ public class UserInterface {
         TileGrid tileGrid = SwingApplications.startTileGrid(
                 AppConfig.newBuilder()
                         // The number of tiles horizontally, and vertically
-                        .withSize(Size.create(80, 100))
+                        .withSize(Size.create(80, 90))
                         // You can choose from a wide array of CP437, True Type or Graphical tilesets
                         // which are built into Zircon
                         .withDefaultTileset(CP437TilesetResources.rexPaint20x20())
@@ -356,9 +362,9 @@ public class UserInterface {
 
     // Need to subtract the score screen vertical
     static Location fromTileGridToPitch(Position position) {
-        Location loc = Location.create(position.getX() - PITCH_LAYER_X_OFFSET, position.getY() - PITCH_LAYER_Y_OFFSET);
+        Location loc = Location.create(position.getX(), position.getY() - GAME_SCREEN_HEIGHT);
 
-        if (loc.getX() < 0 || loc.getX() >= Pitch.WIDTH || loc.getY() < 0 || loc.getY() >= Pitch.HEIGHT) {
+        if (loc.getX() < 0 || loc.getX() >= Pitch.FIELD_WIDTH || loc.getY() < 0 || loc.getY() >= Pitch.FIELD_HEIGHT) {
             return null;
         }
 
@@ -371,7 +377,7 @@ public class UserInterface {
             try {
                 int gameX = event.getPosition().getX();
                 int gameY = event.getPosition().getY();
-                scoreTextArea.setText(gameX + "/" + gameY + "\n" + (gameX - PITCH_LAYER_X_OFFSET) + "/" + (gameY - PITCH_LAYER_Y_OFFSET));
+                scoreTextArea.setText(gameX + "/" + gameY + "\n" + (gameX) + "/" + (gameY - PITCH_LAYER_Y_OFFSET));
             } catch (Throwable th) {
                 th.printStackTrace();
             }

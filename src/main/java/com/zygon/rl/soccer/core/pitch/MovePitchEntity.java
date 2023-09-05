@@ -41,11 +41,11 @@ public class MovePitchEntity extends Pitch.PitchAction {
         if (canExecute(pitch)) {
             if (srcPlayer != null) {
                 Location srcLoc = pitch.getLocation(srcPlayer);
-                pitch.getPitchEntites().delete(srcPlayer, srcLoc);
-                pitch.getPitchEntites().save(srcPlayer, this.dest);
+                pitch.delete(srcPlayer, srcLoc);
+                pitch.save(srcPlayer, this.dest);
             } else {
-                pitch.getPitchEntites().delete(srcBall, pitch.getBallLocation());
-                pitch.getPitchEntites().save(srcBall, this.dest);
+                pitch.delete(srcBall, pitch.getBallLocation());
+                pitch.save(srcBall, this.dest);
             }
         }
     }
